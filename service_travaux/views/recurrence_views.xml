@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_recurrence_list" model="ir.ui.view">
+        <field name="name">travaux.recurrence.list</field>
+        <field name="model">travaux.recurrence</field>
+        <field name="arch" type="xml">
+            <list string="Tâches récurrentes">
+                <field name="name"/>
+                <field name="type_travail"/>
+                <field name="equipe_id"/>
+                <field name="resume"/>
+                <field name="prochaine"/>
+                <field name="duree_prevue" widget="float_time"/>
+                <field name="adresse" optional="show"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_recurrence_form" model="ir.ui.view">
+        <field name="name">travaux.recurrence.form</field>
+        <field name="model">travaux.recurrence</field>
+        <field name="arch" type="xml">
+            <form string="Tâche récurrente">
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_voir_occurrences" type="object" class="oe_stat_button" icon="fa-calendar">
+                            <field name="nb_occurrences" widget="statinfo" string="Occurrences"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Arrêtée" bg_color="text-bg-secondary" invisible="active"/>
+                    <field name="active" invisible="1"/>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="Ex. Corbeilles centre"/></h1>
+                    </div>
+                    <group>
+                        <group string="Quoi et qui">
+                            <field name="type_travail" widget="radio" options="{'horizontal': true}"/>
+                            <field name="equipe_id" options="{'no_create': True}"/>
+                            <field name="duree_prevue" widget="float_time"/>
+                            <field name="adresse" placeholder="Centre, Villages, Rue de la Station…"/>
+                            <field name="lieu_id" options="{'no_create': True}"/>
+                            <field name="objet_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                        </group>
+                        <group string="Récurrence">
+                            <field name="date_start"/>
+                            <label for="repeat_interval"/>
+                            <div class="d-flex gap-2">
+                                <field name="repeat_interval" class="oe_inline" style="max-width: 4rem"/>
+                                <field name="repeat_unit" class="oe_inline"/>
+                            </div>
+                            <label for="mon" string="Les" invisible="repeat_unit != 'week'"/>
+                            <div class="d-flex flex-wrap gap-3" invisible="repeat_unit != 'week'">
+                                <span><field name="mon"/> Lun</span><span><field name="tue"/> Mar</span>
+                                <span><field name="wed"/> Mer</span><span><field name="thu"/> Jeu</span>
+                                <span><field name="fri"/> Ven</span><span><field name="sat"/> Sam</span>
+                                <span><field name="sun"/> Dim</span>
+                            </div>
+                            <field name="repeat_on_month" widget="radio" options="{'horizontal': true}" invisible="repeat_unit != 'month'"/>
+                            <field name="repeat_day" invisible="repeat_unit != 'month' or repeat_on_month != 'date'"/>
+                            <label for="repeat_week" string="Le" invisible="repeat_unit != 'month' or repeat_on_month != 'day'"/>
+                            <div class="d-flex gap-2" invisible="repeat_unit != 'month' or repeat_on_month != 'day'">
+                                <field name="repeat_week" class="oe_inline"/>
+                                <field name="repeat_weekday" class="oe_inline"/>
+                            </div>
+                            <field name="repeat_type"/>
+                            <field name="repeat_until" invisible="repeat_type != 'until'" required="repeat_type == 'until'"/>
+                            <field name="repeat_number" invisible="repeat_type != 'after'"/>
+                            <field name="resume" class="fw-bold"/>
+                            <field name="prochaine"/>
+                        </group>
+                    </group>
+                    <group>
+                        <field name="consigne" placeholder="Ex. prendre la camionnette 2, vider aussi les corbeilles du parc"/>
+                        <field name="liste" placeholder="Une rue ou un arrêt par ligne (pour mémoire, rien à cocher)"/>
+                    </group>
+                    <div class="text-muted small">Les tâches apparaissent dans le planning 5 semaines à l'avance.
+                        Si vous modifiez la récurrence, les tâches à venir non commencées sont refaites.</div>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="view_recurrence_search" model="ir.ui.view">
+        <field name="name">travaux.recurrence.search</field>
+        <field name="model">travaux.recurrence</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="equipe_id"/>
+                <filter name="tournees" string="Tournées et circuits" domain="[('type_travail', '=', 'tournee')]"/>
+                <filter name="maintenance" string="Maintenances" domain="[('type_travail', '=', 'maintenance')]"/>
+                <separator/>
+                <filter name="archived" string="Arrêtées" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter name="grp_equipe" string="Équipe" context="{'group_by': 'equipe_id'}"/>
+                    <filter name="grp_type" string="Type" context="{'group_by': 'type_travail'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="action_recurrences" model="ir.actions.act_window">
+        <field name="name">Tâches récurrentes</field>
+        <field name="res_model">travaux.recurrence</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_grp_equipe': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Créez une tournée, un circuit ou une maintenance qui revient</p>
+            <p>Ramassage des corbeilles tous les lundis et jeudis, balayage après le marché, contrôle des chaufferies
+               le premier mardi du mois… Les tâches se placent toutes seules dans le planning.</p>
+        </field>
+    </record>
+</odoo>

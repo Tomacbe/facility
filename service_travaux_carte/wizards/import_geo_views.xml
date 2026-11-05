@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_import_geo_form" model="ir.ui.view">
+        <field name="name">travaux.import.geo.form</field>
+        <field name="model">travaux.import.geo</field>
+        <field name="arch" type="xml">
+            <form string="Importer des données">
+                <header>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <field name="info" invisible="not info" class="text-muted d-block mb-2"/>
+
+                <!-- 1. source -->
+                <group invisible="state != 'source'">
+                    <field name="source" widget="radio"/>
+                    <field name="fichier" filename="fichier_nom" invisible="source != 'fichier'"/>
+                    <field name="fichier_nom" invisible="1"/>
+                    <field name="url" invisible="source not in ('spw', 'wfs')" required="source in ('spw', 'wfs')"
+                           placeholder="https://…/wfs?service=WFS&amp;request=GetCapabilities"/>
+                    <field name="recherche" invisible="source != 'odwb'"/>
+                </group>
+                <div invisible="state != 'source'" class="alert alert-light mb-0" role="status">
+                    <b invisible="source != 'fichier'">GeoJSON, GeoPackage (.gpkg) ou Shapefile zippé (.zip) exporté de QGIS.
+                        Lambert 72, Lambert 2008 ou WGS84 : la conversion est automatique.</b>
+                    <b invisible="source != 'spw'">Un service du géoportail de Wallonie (PICC, ICAR, CadGIS…), ou le catalogue
+                        https://geoservices.wallonie.be/arcgis/rest/services pour parcourir les dossiers.</b>
+                    <b invisible="source != 'wfs'">N'importe quel service WFS : province, intercommunale, IGN… Il doit savoir renvoyer du GeoJSON.</b>
+                    <b invisible="source != 'odwb'">Jeux de données publiés sur odwb.be : arbres remarquables, aires de jeux, défibrillateurs…</b>
+                </div>
+
+                <!-- 2. couches + zone -->
+                <field name="couche_ids" invisible="state != 'couches'" nolabel="1">
+                    <list editable="bottom" create="0" delete="0">
+                        <field name="importer" invisible="kind != 'layer'" widget="boolean_toggle"/>
+                        <field name="name"/>
+                        <field name="kind" column_invisible="True"/>
+                        <field name="geom"/>
+                        <field name="nombre" invisible="not nombre"/>
+                        <button name="action_ouvrir" type="object" string="Ouvrir" icon="fa-folder-open-o" invisible="kind != 'service'"/>
+                    </list>
+                </field>
+                <group invisible="state != 'couches'" string="Zone">
+                    <field name="zone" widget="radio" options="{'horizontal': true}"/>
+                    <field name="lieu_id" invisible="zone != 'lieu'" options="{'no_create': True}"/>
+                    <field name="rayon" invisible="zone != 'lieu'"/>
+                    <label for="min_lng" string="Rectangle" invisible="zone != 'rect'"/>
+                    <div invisible="zone != 'rect'" class="d-flex gap-2">
+                        <field name="min_lng" placeholder="lng min"/><field name="min_lat" placeholder="lat min"/>
+                        <field name="max_lng" placeholder="lng max"/><field name="max_lat" placeholder="lat max"/>
+                    </div>
+                </group>
+
+                <!-- 3. correspondance -->
+                <group invisible="state != 'classes'">
+                    <group>
+                        <field name="total"/>
+                        <field name="champ_id" options="{'no_create': True, 'no_open': True}"/>
+                        <field name="nom_champ_id" options="{'no_create': True, 'no_open': True}"/>
+                    </group>
+                    <group>
+                        <div class="text-muted" colspan="2">Changez le champ puis « Regrouper ». Chaque valeur devient un # objet
+                            (existant ou nouveau, avec la géométrie de ses entités) ou, pour des surfaces, un # lieu.
+                            Un nouvel import met à jour les objets déjà importés sans écraser une forme corrigée dans FACILITY.</div>
+                    </group>
+                </group>
+                <field name="classe_ids" invisible="state != 'classes'" nolabel="1">
+                    <list editable="bottom" create="0" delete="0">
+                        <field name="importer" widget="boolean_toggle"/>
+                        <field name="couche" optional="hide"/>
+                        <field name="valeur"/>
+                        <field name="geom"/>
+                        <field name="nombre"/>
+                        <field name="cible" invisible="geom != 'surface'"/>
+                        <field name="type_id" invisible="cible == 'lieu'" options="{'no_create': True}" placeholder="—"/>
+                        <field name="nouveau" invisible="cible == 'lieu' or type_id"/>
+                    </list>
+                </field>
+
+                <!-- 4. résultat -->
+                <div invisible="state != 'done'" class="alert alert-success mb-0" role="status"><field name="result" nolabel="1"/></div>
+
+                <footer>
+                    <button name="action_lire" type="object" string="Lire" class="btn-primary" invisible="state != 'source'"/>
+                    <button name="action_charger" type="object" string="Charger les entités" class="btn-primary" invisible="state != 'couches'"/>
+                    <button name="action_importer" type="object" string="Importer" class="btn-primary" invisible="state != 'classes'"/>
+                    <button name="action_classer" type="object" string="Regrouper" invisible="state != 'classes'"/>
+                    <button name="action_voir_carte" type="object" string="Voir sur la carte" class="btn-primary" invisible="state != 'done'"/>
+                    <button name="action_retour" type="object" string="Retour" invisible="state == 'source'"/>
+                    <button special="cancel" string="Fermer"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_import_geo" model="ir.actions.act_window">
+        <field name="name">Importer des données</field>
+        <field name="res_model">travaux.import.geo</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

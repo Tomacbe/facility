@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <t t-name="service_travaux_carte.Swatch">
+        <span t-if="t.g === 'ligne'" class="o_tvc_sw o_tvc_ln" t-attf-style="background:{{ t.c }}"/>
+        <span t-elif="t.g === 'surface'" class="o_tvc_sw o_tvc_sq" t-attf-style="background:{{ t.c }}"/>
+        <span t-else="" class="o_tvc_sw" t-attf-style="background:{{ t.c }}"/>
+    </t>
+
+    <t t-name="service_travaux_carte.Carte">
+        <div class="o_action o_tv_page o_tvc_page">
+            <aside class="o_tvc_side">
+                <div t-if="propositions.length" class="o_tvc_grp">
+                    <div class="o_tv_small_label">À figer · <t t-esc="propositions.length"/></div>
+                    <button t-foreach="propositions" t-as="o" t-key="o.id" class="o_tvc_proprow" t-on-click="() => this.openProp(o)">
+                        <t t-call="service_travaux_carte.Swatch"><t t-set="t" t-value="{g: o.g, c: o.c}"/></t>
+                        <span class="o_tvc_lname">#<t t-esc="o.type"/> <span class="o_tvc_ref" t-esc="o.ref"/></span>
+                    </button>
+                </div>
+                <t t-foreach="['point', 'ligne', 'surface']" t-as="g" t-key="g">
+                    <div t-if="typesOf(g).length" class="o_tvc_grp">
+                        <div class="o_tv_small_label" t-esc="GLABEL[g]"/>
+                        <div t-foreach="typesOf(g)" t-as="t" t-key="t.id" class="o_tvc_row">
+                            <input type="checkbox" t-att-checked="!state.hidden[t.id]" t-on-change="() => this.toggleType(t.id)" t-att-aria-label="'Afficher #' + t.name"/>
+                            <t t-call="service_travaux_carte.Swatch"/>
+                            <span t-attf-class="o_tvc_lname {{ data.is_sup ? 'o_tvc_link' : '' }}" t-on-click="() => data.is_sup and this.openTypeEdit(t)">#<t t-esc="t.name"/></span>
+                            <span class="o_tvc_n" t-esc="t.n"/>
+                            <button t-if="data.is_sup" class="o_tvc_ed" t-att-title="'Modifier #' + t.name" t-on-click="() => this.openTypeEdit(t)"><i class="fa fa-pencil"/></button>
+                        </div>
+                    </div>
+                </t>
+                <button t-if="data.is_sup" class="o_tvc_addtype" t-on-click="() => this.openTypeEdit(null)">+ Nouveau # objet</button>
+                <div class="o_tvc_grp">
+                    <div class="o_tv_small_label"># Lieux</div>
+                    <label class="o_tvc_row">
+                        <input type="checkbox" t-att-checked="state.zonesOn" t-on-change="toggleZones"/>
+                        <span class="o_tvc_sw o_tvc_sq o_tvc_dash"/>Contours et points
+                        <span class="o_tvc_n" t-esc="data.zones.length + data.lieux_points.length"/>
+                    </label>
+                    <div class="o_tvc_row o_tvc_static"><span class="o_tvc_chip" style="--c:#2E8B57">Zone faite</span><span class="o_tvc_n" t-esc="nbFait"/></div>
+                    <div class="o_tvc_row o_tvc_static"><span class="o_tvc_chip" style="--c:#D07A1F">Zone à faire</span><span class="o_tvc_n" t-esc="nbTodo"/></div>
+                    <t t-if="data.sans_geo.length">
+                        <div class="o_tvc_sub">Sans géométrie · <t t-esc="data.nb_sans_geo"/></div>
+                        <button t-foreach="data.sans_geo.slice(0, 30)" t-as="l" t-key="l.id" class="o_tvc_row o_tvc_nogeo_row" t-on-click="() => this.openSansGeo(l)">
+                            <span class="o_tvc_lname">#<t t-esc="l.name"/></span><span class="o_tvc_nogeo">à placer</span>
+                        </button>
+                        <div t-if="data.nb_sans_geo > 30" class="o_tvc_sub">… et <t t-esc="data.nb_sans_geo - 30"/> autres (Configuration › # Lieux)</div>
+                    </t>
+                </div>
+                <div class="o_tvc_grp">
+                    <div class="o_tv_small_label">Fond de plan</div>
+                    <div class="o_tvc_seg">
+                        <button t-attf-class="{{ state.fond === 'auto' ? 'on' : '' }}" t-on-click="() => this.setFond('auto')">Plan auto</button>
+                        <button t-attf-class="{{ state.fond === 'ortho' ? 'on' : '' }}" t-on-click="() => this.setFond('ortho')">Photo aérienne</button>
+                    </div>
+                    <div class="o_tvc_sub" t-if="state.fond === 'auto'">OpenStreetMap en vue éloignée, PICC dès qu'on zoome sur la rue.</div>
+                </div>
+                <button t-if="data.is_sup" class="o_tv_btn o_tv_btn_light" t-on-click="importer"><i class="fa fa-download"/> Importer des données</button>
+            </aside>
+
+            <div class="o_tvc_mapcol">
+                <div t-if="state.error" class="o_tv_empty">Carte indisponible : la bibliothèque de carte ne s'est pas chargée.</div>
+                <div t-attf-class="o_tvc_map {{ isDrawing ? 'o_tvc_drawing' : '' }}" t-ref="map"/>
+                <div class="o_tvc_toolbar" t-if="data.can_add or data.is_sup">
+                    <div class="o_tvc_tgroup" role="group" aria-label="Ajouter">
+                        <span class="o_tvc_tlbl">Ajouter</span>
+                        <button t-att-aria-pressed="state.tool === 'point' and !state.geoTarget ? 'true' : 'false'" t-on-click="() => this.setTool('point')"><i class="fa fa-map-pin"/> Point</button>
+                        <button t-att-aria-pressed="state.tool === 'ligne' ? 'true' : 'false'" t-on-click="() => this.setTool('ligne')"><i class="fa fa-pencil"/> Ligne</button>
+                        <button t-att-aria-pressed="state.tool === 'surface' ? 'true' : 'false'" t-on-click="() => this.setTool('surface')"><i class="fa fa-square-o"/> Surface</button>
+                        <button t-if="data.is_sup" t-att-aria-pressed="state.tool === 'lieu' and !state.geoTarget ? 'true' : 'false'" t-on-click="() => this.setTool('lieu')"><i class="fa fa-object-ungroup"/> # Lieu</button>
+                    </div>
+                    <div class="o_tvc_tgroup" role="group" aria-label="Modifier">
+                        <span class="o_tvc_tlbl">Modifier</span>
+                        <button t-att-aria-pressed="state.tool === 'forme' ? 'true' : 'false'" t-on-click="() => this.setTool('forme')"><i class="fa fa-share-alt"/> Forme</button>
+                        <button t-att-aria-pressed="state.tool === 'deplacer' ? 'true' : 'false'" t-on-click="() => this.setTool('deplacer')"><i class="fa fa-arrows"/> Déplacer</button>
+                        <button class="o_tvc_del" t-att-aria-pressed="state.tool === 'supprimer' ? 'true' : 'false'" t-on-click="() => this.setTool('supprimer')"><i class="fa fa-trash-o"/> Supprimer</button>
+                    </div>
+                </div>
+                <div class="o_tvc_fond">Fond : <b t-esc="{osm: 'OpenStreetMap', picc: 'PICC', ortho: 'Photo aérienne'}[state.fondEff]"/>
+                    <span class="text-muted"> · zoom <t t-esc="state.zoom"/></span></div>
+                <div t-if="isDrawing and state.tool !== 'point'" class="o_tvc_drawbar">
+                    <span><t t-if="state.tool === 'lieu'">Contour du # lieu</t><t t-elif="state.tool === 'ligne'">Ligne</t><t t-else="">Surface</t> · <t t-esc="draftInfo"/></span>
+                    <button class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-att-disabled="!state.draft.length" t-on-click="undoDraft">Retirer le dernier</button>
+                    <button class="o_tv_btn o_tv_btn_xs o_tv_btn_primary" t-att-disabled="state.draft.length &lt; draftMin" t-on-click="finishDraw">Terminer</button>
+                    <button class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-on-click="resetTool">Annuler</button>
+                </div>
+                <div t-if="state.edit" class="o_tvc_drawbar">
+                    <span>Modifier la forme · <t t-esc="editInfo"/> · double-clic sur un sommet pour le retirer</span>
+                    <button class="o_tv_btn o_tv_btn_xs o_tv_btn_primary" t-att-disabled="state.busy" t-on-click="saveEdit">Enregistrer</button>
+                    <button class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-on-click="() => this.cancelEdit(true)">Annuler</button>
+                </div>
+                <div t-if="state.moving" class="o_tvc_drawbar">
+                    <span>Faites glisser la poignée à la nouvelle place.</span>
+                    <button class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-on-click="() => this.cancelEdit(true)">Annuler</button>
+                </div>
+                <div t-if="state.geoTarget and state.tool" class="o_tvc_drawbar o_tvc_drawbar_top">
+                    <span t-if="state.tool === 'point'">Touchez l'emplacement du # lieu.</span>
+                    <span t-else="">Dessinez le contour du # lieu · <t t-esc="draftInfo"/></span>
+                    <button class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-on-click="resetTool">Annuler</button>
+                </div>
+            </div>
+
+            <aside class="o_tvc_panel">
+                <t t-set="p" t-value="state.panel"/>
+                <t t-set="te" t-value="state.typeEdit"/>
+                <t t-set="pe" t-value="state.pending"/>
+                <!-- éditeur de # -->
+                <t t-if="te">
+                    <div class="o_tvc_ph">
+                        <div class="o_tv_small_label"><t t-if="te.id">Modifier le # objet</t><t t-else="">Nouveau # objet</t></div>
+                        <h2><t t-if="te.id">#<t t-esc="selectedTypeEdit and selectedTypeEdit.name"/></t><t t-else="">Nouveau type</t></h2>
+                        <span t-if="te.id" class="text-muted"><t t-esc="te.n"/> objet(s) sur la carte</span>
+                    </div>
+                    <div class="o_tvc_sect o_tvc_form">
+                        <label>Nom du #<input class="o_tv_input" t-model="te.name" placeholder="ex. Parterre"/></label>
+                        <div>Géométrie
+                            <div class="o_tvc_geoseg">
+                                <button t-foreach="[['point', 'Point', 'fa-map-pin'], ['ligne', 'Ligne', 'fa-pencil'], ['surface', 'Surface', 'fa-square-o']]" t-as="g" t-key="g[0]"
+                                        t-att-aria-pressed="te.g === g[0] ? 'true' : 'false'" t-att-disabled="te.n and te.g !== g[0]" t-on-click="() => this.setTypeGeom(g[0])">
+                                    <i t-attf-class="fa {{ g[2] }}"/> <t t-esc="g[1]"/></button>
+                            </div>
+                        </div>
+                        <p class="o_tv_note mb-0" t-if="te.n">La géométrie est verrouillée : des objets ont déjà leur forme. Pour une autre géométrie, créez un autre #.</p>
+                        <p class="o_tv_note mb-0" t-else="">La géométrie décide de ce qu'on dessine pour ce # : un point, une ligne (avec sa longueur) ou une surface (avec ses m²).</p>
+                        <div class="o_tvc_two">
+                            <label>Couleur<input type="color" class="o_tv_input o_tvc_color" t-model="te.c"/></label>
+                            <label>Préfixe<input class="o_tv_input" maxlength="4" t-model="te.pre" placeholder="PA"/></label>
+                        </div>
+                        <label class="o_tvc_row"><input type="checkbox" t-model="te.proposable"/> Proposable depuis l'app terrain</label>
+                    </div>
+                    <div class="o_tvc_acts">
+                        <button class="o_tv_btn o_tv_btn_primary" t-att-disabled="state.busy" t-on-click="saveType">Enregistrer</button>
+                        <button class="o_tv_btn o_tv_btn_light" t-on-click="closeTypeEdit">Annuler</button>
+                        <button t-if="te.id and !te.n" class="o_tv_btn o_tv_btn_light o_tvc_danger" t-on-click="deleteType">Supprimer le #</button>
+                    </div>
+                </t>
+                <!-- nouvel objet / nouveau # lieu -->
+                <t t-elif="pe">
+                    <div class="o_tvc_ph">
+                        <div class="o_tv_small_label"><t t-if="pe.g === 'lieu'">Nouveau # lieu</t><t t-else="">Nouvel objet · <t t-esc="pe.g"/></t></div>
+                        <h2><t t-if="pe.g === 'point'">Point placé</t><t t-elif="pe.g === 'ligne'">Ligne dessinée</t><t t-else="">Contour dessiné</t></h2>
+                        <span class="text-muted" t-esc="pendingInfo"/>
+                    </div>
+                    <div class="o_tvc_sect o_tvc_form">
+                        <t t-if="pe.g === 'lieu'">
+                            <label>Nom du # lieu<input class="o_tv_input" t-model="pe.name" placeholder="ex. Pelouse du parking"/></label>
+                            <label>Tournée (facultatif)
+                                <select class="o_tv_input" t-model="pe.circuit">
+                                    <option value="">—</option>
+                                    <option t-foreach="data.circuits" t-as="c" t-key="c.id" t-att-value="c.id" t-esc="c.name"/>
+                                </select>
+                            </label>
+                            <p class="o_tv_note mb-0">Le # lieu devient une zone de la tournée choisie. Les objets sans # lieu dessinés dedans lui sont rattachés.</p>
+                        </t>
+                        <t t-else="">
+                            <label>Type (# objet)
+                                <select class="o_tv_input" t-on-change="onPendingType">
+                                    <option t-if="!pendingTypes.length" value="">— aucun # <t t-esc="pe.g"/> —</option>
+                                    <option t-foreach="pendingTypes" t-as="t" t-key="t.id" t-att-value="t.id" t-att-selected="t.id === pe.type">#<t t-esc="t.name"/></option>
+                                    <option t-if="data.is_sup" value="new">+ Nouveau # <t t-esc="pe.g"/>…</option>
+                                </select>
+                            </label>
+                            <p class="o_tv_note mb-0"><t t-if="data.is_sup">L'objet est figé tout de suite.</t><t t-else="">L'objet reste « proposé » jusqu'à ce qu'un superviseur le fige.</t>
+                                Le # lieu est détecté tout seul.</p>
+                        </t>
+                    </div>
+                    <div class="o_tvc_acts">
+                        <button class="o_tv_btn o_tv_btn_primary" t-att-disabled="state.busy" t-on-click="savePending"><t t-if="pe.g === 'lieu'">Créer le # lieu</t><t t-else="">Enregistrer</t></button>
+                        <button class="o_tv_btn o_tv_btn_light" t-on-click="cancelPending">Annuler</button>
+                    </div>
+                </t>
+                <div t-elif="!p" class="o_tvc_empty">
+                    <div class="o_tv_small_label">Carte FACILITY</div>
+                    <p>Touchez un objet ou un # lieu pour voir sa fiche : ses demandes, en créer une, le modifier ou le supprimer.</p>
+                    <p class="o_tv_note"><b>Ajouter</b> : point, ligne, surface ou # lieu. Double-cliquez pour terminer un dessin.</p>
+                    <p class="o_tv_note"><b>Modifier</b> : glisser les sommets (Forme), déplacer l'objet entier, ou le supprimer.
+                        Réservé aux superviseurs ; un agent corrige seulement ses propres propositions.</p>
+                </div>
+                <!-- objet -->
+                <t t-elif="p.kind === 'objet'">
+                    <div class="o_tvc_ph">
+                        <div class="o_tv_small_label">Objet recensé · <t t-esc="p.g"/></div>
+                        <h2>#<t t-esc="p.type"/> <span class="o_tvc_ref" t-esc="p.ref"/></h2>
+                        <div class="o_tvc_tags">
+                            <span t-attf-class="o_tvc_tag o_tvc_tag_{{ p.src }}" t-esc="p.source"/>
+                            <span t-if="p.prop" class="o_tvc_tag o_tvc_tag_prop">Proposé · à figer</span>
+                            <span t-else="" class="o_tvc_tag">Figé</span>
+                            <span t-if="p.lieu" class="o_tv_lieu o_tv_lieu_sm" t-esc="p.lieu"/>
+                        </div>
+                    </div>
+                    <dl class="o_tvc_kv">
+                        <dt t-if="p.mesure"><t t-if="p.g === 'ligne'">Longueur</t><t t-else="">Surface</t></dt><dd t-if="p.mesure" t-esc="p.mesure"/>
+                        <dt>Rue</dt><dd t-esc="p.rue or '—'"/>
+                        <dt># Lieu</dt><dd t-esc="p.lieu or '—'"/>
+                        <dt>Tournée</dt><dd><t t-esc="p.circuit or '—'"/><t t-if="p.equipe"> · <t t-esc="p.equipe"/></t></dd>
+                        <dt t-if="p.picc_nature">PICC</dt><dd t-if="p.picc_nature" t-esc="p.picc_nature"/>
+                        <dt t-if="p.note">Remarque</dt><dd t-if="p.note" t-esc="p.note"/>
+                    </dl>
+                    <div t-if="p.prop" class="o_tvc_box o_tvc_box_prop">
+                        <b>Proposé<t t-if="p.propose_par"> par <t t-esc="p.propose_par"/></t></b>
+                        <span>Vérifiez la position et la forme, corrigez-les si besoin, puis figez l'objet.</span>
+                        <div t-if="data.is_sup" class="d-flex gap-2">
+                            <button class="o_tv_btn o_tv_btn_xs o_tv_btn_primary" t-on-click="figer">Figer</button>
+                            <button class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-on-click="refuser">Refuser</button>
+                        </div>
+                    </div>
+                    <div t-if="state.confirm" class="o_tvc_box o_tvc_box_del">
+                        <b><t t-if="p.nb_demandes">Retirer</t><t t-else="">Supprimer</t> #<t t-esc="p.type"/> <t t-esc="p.ref"/> ?</b>
+                        <span t-if="p.nb_demandes">Il a <t t-esc="p.nb_demandes"/> demande(s) : il sera archivé. Il disparaît de la carte, son historique est conservé.</span>
+                        <span t-else="">Il sera définitivement effacé.</span>
+                        <div class="d-flex gap-2">
+                            <button class="o_tv_btn o_tv_btn_xs o_tvc_danger_solid" t-att-disabled="state.busy" t-on-click="doDelete"><t t-if="p.nb_demandes">Archiver</t><t t-else="">Supprimer</t></button>
+                            <button class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-on-click="cancelDelete">Annuler</button>
+                        </div>
+                    </div>
+                    <div class="o_tvc_sect">
+                        <div class="o_tv_small_label">Demandes sur cet objet</div>
+                        <div t-if="p.demandes.length" class="o_tvc_mini">
+                            <button t-foreach="p.demandes" t-as="d" t-key="d.id" t-on-click="() => this.ouvrirDemande(d.id)">
+                                <span><t t-esc="d.titre"/> <small class="text-muted" t-esc="d.ref"/></span>
+                                <span t-attf-class="{{ d.state === 'close' or d.state === 'annulee' ? 'text-muted' : 'o_tvc_open' }}" t-esc="d.st"/>
+                            </button>
+                        </div>
+                        <p t-else="" class="text-muted mb-0">Aucune demande pour l'instant.</p>
+                    </div>
+                    <div class="o_tvc_acts">
+                        <button class="o_tv_btn o_tv_btn_primary" t-on-click="nouvelleDemande"><i class="fa fa-plus"/> Créer une demande</button>
+                        <button t-if="p.can_edit and p.g !== 'point'" class="o_tv_btn o_tv_btn_light" t-on-click="startForme">Modifier la forme</button>
+                        <button t-if="p.can_edit" class="o_tv_btn o_tv_btn_light" t-on-click="startMove">Déplacer</button>
+                        <button t-if="data.is_sup" class="o_tv_btn o_tv_btn_light" t-on-click="modifier">Modifier la fiche</button>
+                        <button t-if="p.can_edit" class="o_tv_btn o_tv_btn_light o_tvc_danger" t-on-click="askDelete">Supprimer</button>
+                    </div>
+                </t>
+                <!-- # lieu sans géométrie -->
+                <t t-elif="p.sans_geo">
+                    <div class="o_tvc_ph">
+                        <div class="o_tv_small_label"># Lieu</div>
+                        <h2>#<t t-esc="p.name"/></h2>
+                        <div><span class="o_tvc_nogeo">sans géométrie</span></div>
+                    </div>
+                    <div class="o_tvc_sect pt-3">
+                        <p class="mb-0">Ce # lieu existe dans FACILITY (demandes, tournées) mais n'a pas encore de place sur la carte.</p>
+                        <p t-if="p.adresse" class="text-muted mb-0">Adresse : <t t-esc="p.adresse"/></p>
+                    </div>
+                    <div class="o_tvc_acts" t-if="data.is_sup">
+                        <button class="o_tv_btn o_tv_btn_primary" t-on-click="() => this.drawLieuGeo('contour')">Dessiner le contour</button>
+                        <button class="o_tv_btn o_tv_btn_light" t-on-click="() => this.drawLieuGeo('point')">Placer un point</button>
+                        <button class="o_tv_btn o_tv_btn_light" t-on-click="ouvrirLieu">Ouvrir le #</button>
+                    </div>
+                </t>
+                <!-- # lieu -->
+                <t t-else="">
+                    <div class="o_tvc_ph">
+                        <div class="o_tv_small_label"># Lieu<t t-if="p.zones.length"> · zone de tournée</t></div>
+                        <h2>#<t t-esc="p.name"/></h2>
+                        <div class="o_tvc_tags">
+                            <t t-foreach="p.zones" t-as="z" t-key="z_index">
+                                <span class="o_tvc_chip" t-attf-style="--c:{{ ETATS[z.etat] }}"><t t-if="z.etat === 'fait'">Fait</t><t t-else="">À faire</t> · <t t-esc="z.circuit"/></span>
+                            </t>
+                        </div>
+                    </div>
+                    <dl class="o_tvc_kv">
+                        <dt>Géométrie</dt><dd><t t-if="p.geojson"><t t-esc="p.surface.toLocaleString('fr-BE')"/> m²</t><t t-else="">point</t></dd>
+                        <t t-foreach="p.zones" t-as="z" t-key="z_index">
+                            <dt>Tournée</dt><dd><t t-esc="z.circuit"/> · <t t-esc="z.equipe"/></dd>
+                            <dt>Dernier passage</dt><dd t-esc="z.dernier or 'jamais'"/>
+                        </t>
+                        <dt>Objets dedans</dt><dd><t t-esc="p.objets"/><t t-if="p.objets_types"> · <t t-esc="p.objets_types"/></t></dd>
+                    </dl>
+                    <div t-if="state.confirm" class="o_tvc_box o_tvc_box_del">
+                        <b>Supprimer le # lieu ?</b>
+                        <span>Ses <t t-esc="p.objets"/> objets restent sur la carte, sans # lieu. S'il sert dans une tournée ou une demande, il est archivé au lieu d'être effacé.</span>
+                        <div class="d-flex gap-2">
+                            <button class="o_tv_btn o_tv_btn_xs o_tvc_danger_solid" t-att-disabled="state.busy" t-on-click="doDelete">Supprimer</button>
+                            <button class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-on-click="cancelDelete">Annuler</button>
+                        </div>
+                    </div>
+                    <div class="o_tvc_sect" t-if="p.passages.length">
+                        <div class="o_tv_small_label">Derniers passages</div>
+                        <div class="o_tvc_mini">
+                            <div t-foreach="p.passages" t-as="x" t-key="x_index"><span t-esc="x.date"/><span class="text-muted"><t t-if="x.inutile">pas nécessaire</t><t t-else=""><t t-esc="x.h"/> h</t></span></div>
+                        </div>
+                    </div>
+                    <div class="o_tvc_acts">
+                        <button t-if="data.is_sup and p.geojson" class="o_tv_btn o_tv_btn_light" t-on-click="startForme">Modifier la forme</button>
+                        <button t-if="data.is_sup and !p.geojson" class="o_tv_btn o_tv_btn_light" t-on-click="() => this.drawLieuGeo('contour')">Dessiner le contour</button>
+                        <button t-if="data.is_sup" class="o_tv_btn o_tv_btn_light" t-on-click="startMove">Déplacer</button>
+                        <button class="o_tv_btn o_tv_btn_light" t-on-click="ouvrirLieu">Ouvrir le #</button>
+                        <button t-if="data.is_sup" class="o_tv_btn o_tv_btn_light o_tvc_danger" t-on-click="askDelete">Supprimer</button>
+                    </div>
+                </t>
+            </aside>
+        </div>
+    </t>
+</templates>

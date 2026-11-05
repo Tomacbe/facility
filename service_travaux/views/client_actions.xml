@@ -1,0 +1,27 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<odoo>
+    <record id="action_client_equipes" model="ir.actions.client">
+        <field name="name">Équipes du jour</field>
+        <field name="tag">travaux_equipes</field>
+    </record>
+    <record id="action_client_mes_demandes" model="ir.actions.client">
+        <field name="name">Mes demandes</field>
+        <field name="tag">travaux_mes_demandes</field>
+    </record>
+    <record id="action_client_demandes" model="ir.actions.client">
+        <field name="name">Demandes à traiter</field>
+        <field name="tag">travaux_demandes</field>
+    </record>
+    <record id="action_client_suivi" model="ir.actions.client">
+        <field name="name">Suivi et planning</field>
+        <field name="tag">travaux_suivi</field>
+    </record>
+    <record id="action_client_terrain" model="ir.actions.client">
+        <field name="name">App terrain</field>
+        <field name="tag">travaux_terrain</field>
+    </record>
+    <record id="action_client_direction" model="ir.actions.client">
+        <field name="name">Tableau de bord</field>
+        <field name="tag">travaux_direction</field>
+    </record>
+</odoo>

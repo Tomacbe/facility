@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="service_travaux.MesDemandes" owl="1">
+    <div class="o_action o_tv_page o_tv_mesdem">
+        <div class="o_tv_page_head">
+            <div>
+                <h1>Mes demandes au service technique</h1>
+                <div class="o_tv_lead"><t t-esc="state.data.items.length"/> demande(s) · <t t-esc="state.data.me"/></div>
+            </div>
+            <div class="flex-grow-1"/>
+            <button class="o_tv_btn o_tv_btn_primary" t-on-click="newRequest"><i class="fa fa-plus"/> Nouvelle demande</button>
+        </div>
+
+        <div t-attf-class="o_tv_3col {{ layoutClass }}">
+            <!-- mes demandes -->
+            <div class="o_tv_queue">
+                <div t-if="!state.data.items.length" class="o_tv_empty">Aucune demande pour l'instant. « Nouvelle demande » : décrivez le problème et l'endroit.</div>
+                <t t-foreach="state.data.items" t-as="r" t-key="r.id">
+                    <div t-attf-class="o_tv_qitem {{ state.selId === r.id ? 'active' : '' }}" t-on-click="() => this.select(r.id)">
+                        <div class="o_tv_thumb">
+                            <img t-if="r.has_apres" t-att-src="imgUrl(r.id, 'photo_apres', '128x128')" alt=""/>
+                            <img t-elif="r.has_avant" t-att-src="imgUrl(r.id, 'photo_avant', '128x128')" alt=""/>
+                            <i t-else="" class="fa fa-file-text-o"/>
+                        </div>
+                        <div class="flex-grow-1 overflow-hidden lh-sm">
+                            <div class="o_tv_meta"><t t-esc="r.ref"/> · <t t-esc="chatTime(r.create)"/></div>
+                            <div class="o_tv_qtitle text-truncate" t-esc="r.titre"/>
+                            <div class="o_tv_meta text-truncate"><span t-if="r.lieu" class="o_tv_lieu o_tv_lieu_sm" t-esc="r.lieu"/> <t t-esc="r.precision or r.adresse"/></div>
+                        </div>
+                        <span class="o_tv_st" t-att-style="ST_STYLE[r.st]" t-esc="r.etat"/>
+                    </div>
+                </t>
+            </div>
+
+            <!-- la demande choisie -->
+            <t t-set="c" t-value="state.cur"/>
+            <div class="o_tv_detail" t-if="c">
+                <button t-if="ui.isSmall" class="o_tv_back_link" t-on-click="back"><i class="fa fa-chevron-left"/> Mes demandes</button>
+                <div class="o_tv_mesdem_photos" t-if="c.has_avant or c.has_apres">
+                    <figure t-if="c.has_avant"><img t-att-src="imgUrl(c.id, 'photo_avant', '640x480')" alt="Photo avant"/><figcaption>Photo envoyée</figcaption></figure>
+                    <figure t-if="c.has_apres"><img t-att-src="imgUrl(c.id, 'photo_apres', '640x480')" alt="Photo après"/><figcaption>Après l'intervention</figcaption></figure>
+                </div>
+                <div class="o_tv_detail_body">
+                    <div class="o_tv_meta"><t t-esc="c.ref"/> · envoyée <t t-esc="chatTime(c.create)"/><t t-if="c.service"> · <t t-esc="c.service"/></t></div>
+                    <h2 class="o_tv_mesdem_title" t-esc="c.titre"/>
+                    <div class="o_tv_mesdem_state"><span class="o_tv_st" t-att-style="ST_STYLE[c.st]" t-esc="c.etat"/>
+                        <span t-if="c.equipe and ['planif','cours'].includes(c.state)" class="o_tv_meta ms-2">par l'équipe <t t-esc="c.equipe"/></span></div>
+                    <div class="o_tv_small_label mt-3">LIEU</div>
+                    <div class="o_tv_where"><i class="fa fa-map-marker"/> <span t-if="c.lieu" class="o_tv_lieu o_tv_lieu_sm me-1" t-esc="c.lieu"/><b t-esc="c.adresse"/><span t-if="c.precision and c.precision !== c.adresse"> · <t t-esc="c.precision"/></span></div>
+                    <div class="o_tv_small_label mt-3">VOTRE DEMANDE</div>
+                    <div class="o_tv_mesdem_desc" t-esc="c.description"/>
+                </div>
+                <div class="o_tv_detail_foot"><TvTimeline steps="c.timeline" compact="true"/></div>
+                <div class="o_tv_small_label px-3 pt-2">ÉCHANGES AVEC LE SERVICE TECHNIQUE</div>
+                <div class="o_tv_chat o_tv_mesdem_chat" t-ref="chat">
+                    <div t-if="!c.messages.length" class="o_tv_meta text-center p-3">Pas encore de message. Écrivez ci-dessous pour ajouter une précision.</div>
+                    <t t-foreach="c.messages" t-as="m" t-key="m.id">
+                        <div t-attf-class="o_tv_msg {{ m.out ? 'out' : 'in' }}">
+                            <div class="o_tv_bubble">
+                                <div t-if="!m.out" class="o_tv_author"><t t-esc="m.author"/><t t-if="m.role"> · <t t-esc="m.role"/></t></div>
+                                <t t-foreach="m.images" t-as="im" t-key="im.id"><img class="o_tv_mesdem_img" t-att-src="im.url" alt="Photo"/></t>
+                                <div t-if="m.text" class="o_tv_text" t-esc="m.text"/>
+                                <div class="o_tv_time" t-esc="chatTime(m.date)"/>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+                <form t-if="c.state !== 'close'" class="o_tv_composer" t-on-submit="post">
+                    <input type="file" accept="image/*" class="d-none" t-ref="msgfile" t-on-change="onMsgPhoto"/>
+                    <button type="button" class="o_tv_cam" title="Envoyer une photo" t-att-disabled="state.busy" t-on-click="pickMsgPhoto"><i class="fa fa-camera"/></button>
+                    <textarea rows="1" placeholder="Écrire au service technique…" t-model="state.draft"/>
+                    <button type="submit" class="o_tv_send" t-att-disabled="state.busy or !state.draft.trim()" title="Envoyer"><i class="fa fa-paper-plane"/></button>
+                </form>
+            </div>
+            <div class="o_tv_detail o_tv_mesdem_none" t-elif="!ui.isSmall">
+                <div class="o_tv_empty">Choisissez une demande à gauche pour voir où elle en est et échanger avec le service technique.</div>
+            </div>
+
+            <!-- nouvelle demande -->
+            <div class="o_tv_assign" t-if="showForm">
+                <button t-if="ui.isSmall" class="o_tv_back_link" t-on-click="back"><i class="fa fa-chevron-left"/> Mes demandes</button>
+                <h3>Nouvelle demande</h3>
+                <label for="md_titre">QUOI ?</label>
+                <input id="md_titre" t-ref="titre" class="o_tv_input" placeholder="Ex. fuite au plafond, porte bloquée" t-att-value="state.form.titre" t-on-input="(ev) => this.setField('titre', ev)"/>
+                <label for="md_desc">DESCRIPTION</label>
+                <textarea id="md_desc" class="o_tv_input" rows="3" placeholder="Ce que vous constatez, depuis quand, s'il y a un danger…" t-att-value="state.form.description" t-on-input="(ev) => this.setField('description', ev)"/>
+                <label for="md_lieu">BÂTIMENT OU LIEU</label>
+                <select id="md_lieu" class="o_tv_input" t-on-change="(ev) => this.setField('lieu_id', ev)">
+                    <option value="">Autre endroit (préciser ci-dessous)</option>
+                    <t t-foreach="state.data.lieux" t-as="l" t-key="l.id"><option t-att-value="l.id" t-att-selected="isSel('lieu_id', l.id)">#<t t-esc="l.name"/></option></t>
+                </select>
+                <label for="md_adr">OÙ EXACTEMENT ?</label>
+                <input id="md_adr" class="o_tv_input" placeholder="2e étage, classe 3 ; ou une adresse" t-att-value="state.form.adresse" t-on-input="(ev) => this.setField('adresse', ev)"/>
+                <label for="md_cat">TYPE (FACULTATIF)</label>
+                <select id="md_cat" class="o_tv_input" t-on-change="(ev) => this.setField('categorie_id', ev)">
+                    <option value="">Je ne sais pas</option>
+                    <t t-foreach="state.data.categories" t-as="k" t-key="k.id"><option t-att-value="k.id" t-att-selected="isSel('categorie_id', k.id)" t-esc="k.name"/></t>
+                </select>
+                <label>PHOTO (FACULTATIF)</label>
+                <input type="file" accept="image/*" class="d-none" t-ref="file" t-on-change="onPhoto"/>
+                <div class="d-flex gap-2 align-items-center">
+                    <img t-if="photoPreview" t-att-src="photoPreview" class="o_tv_mesdem_prev" alt="Aperçu"/>
+                    <button class="o_tv_btn o_tv_btn_light" t-on-click="pickPhoto"><i class="fa fa-camera"/> <t t-if="state.form.photo">Changer la photo</t><t t-else="">Ajouter une photo</t></button>
+                </div>
+                <div class="o_tv_dform mt-1">
+                    <div><label for="md_contact">CONTACT</label><input id="md_contact" class="o_tv_input" t-att-value="state.form.contact" t-on-input="(ev) => this.setField('contact', ev)"/></div>
+                    <div><label for="md_service">SERVICE</label><input id="md_service" class="o_tv_input" placeholder="Ex. École du Centre" t-att-value="state.form.service" t-on-input="(ev) => this.setField('service', ev)"/></div>
+                </div>
+                <button class="o_tv_btn o_tv_btn_primary w-100 mt-3" t-att-disabled="state.busy" t-on-click="send"><i class="fa fa-paper-plane"/> Envoyer la demande</button>
+                <div class="o_tv_meta mt-2">Le service technique examine votre demande, vous répond ici et vous prévient quand elle est planifiée et terminée.</div>
+            </div>
+        </div>
+    </div>
+</t>
+
+</templates>

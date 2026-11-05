@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_demande" model="ir.sequence">
+            <field name="name">Demande de travaux</field>
+            <field name="code">travaux.demande</field>
+            <field name="prefix">DT-</field>
+            <field name="padding">4</field>
+        </record>
+        <record id="seq_tournee" model="ir.sequence">
+            <field name="name">Tournée récurrente</field>
+            <field name="code">travaux.tournee</field>
+            <field name="prefix">TR-</field>
+            <field name="padding">4</field>
+        </record>
+        <record id="seq_maintenance" model="ir.sequence">
+            <field name="name">Maintenance planifiée</field>
+            <field name="code">travaux.maintenance</field>
+            <field name="prefix">MP-</field>
+            <field name="padding">4</field>
+        </record>
+
+        <record id="cron_reset_journee" model="ir.cron">
+            <field name="name">FACILITY : remise à zéro des présences du jour</field>
+            <field name="model_id" ref="hr.model_hr_employee"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_reset_journee()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 02:00:00')"/>
+        </record>
+
+        <record id="cron_recurrences" model="ir.cron">
+            <field name="name">FACILITY : créer les tâches récurrentes à venir</field>
+            <field name="model_id" ref="model_travaux_recurrence"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_generate()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 03:00:00')"/>
+        </record>
+
+        <record id="cron_pointeuse" model="ir.cron">
+            <field name="name">FACILITY : présences d'après la pointeuse</field>
+            <field name="model_id" ref="hr.model_hr_employee"/>
+            <field name="state">code</field>
+            <field name="code">model._travaux_sync_pointeuse()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+        </record>
+
+        <record id="pool_equipe" model="travaux.equipe">
+            <field name="name">Agents sans équipe</field>
+            <field name="is_pool" eval="True"/>
+            <field name="effectif_min">0</field>
+            <field name="capacite_hebdo">0</field>
+            <field name="sequence">99</field>
+        </record>
+    </data>
+</odoo>

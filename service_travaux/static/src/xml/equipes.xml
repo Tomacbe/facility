@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="service_travaux.Equipes" owl="1">
+    <div class="o_action o_tv_page o_tv_equipes">
+        <div class="o_tv_page_head">
+            <div>
+                <h1>Équipes du jour</h1>
+                <div class="o_tv_lead"><t t-esc="dateLabel"/> · cliquez sur un agent pour le gérer</div>
+            </div>
+            <div class="flex-grow-1"/>
+            <div class="o_tv_counters">
+                <span><b class="text-success" t-esc="counts.present"/> présents</span>
+                <span><b t-esc="counts.absent"/> absents</span>
+                <span><b t-esc="counts.lent"/> prêtés</span>
+            </div>
+            <select t-if="(state.data.services or []).length" class="o_tv_input o_tv_input_inline" t-on-change="onDept" title="Filtrer par service de l'organigramme">
+                <option value="">Tous les services</option>
+                <t t-foreach="state.data.services" t-as="d" t-key="d.id"><option t-att-value="d.id" t-att-selected="isDeptSel(d.id)" t-esc="deptLabel(d)"/></t>
+            </select>
+            <div class="o_tv_seg o_tv_seg_grey">
+                <t t-foreach="supTabs" t-as="s" t-key="s.id">
+                    <button t-attf-class="{{ isSup(s.id) ? 'on' : '' }}" t-on-click="() => this.setSup(s.id)" t-esc="s.name"/>
+                </t>
+            </div>
+            <button t-if="state.data.can_edit" class="o_tv_btn o_tv_btn_primary" t-on-click="openCreate"><i class="fa fa-plus"/> Nouvelle équipe</button>
+        </div>
+
+        <div class="px-4"><TvHelp id="'equipes'" text="help.text" steps="help.steps"/></div>
+        <div t-if="state.data.alert" class="o_tv_alert">
+            <i class="fa fa-exclamation-triangle"/>
+            <span class="flex-grow-1" t-esc="state.data.alert.text"/>
+            <button t-if="state.data.alert.donor_id and state.data.can_edit" class="o_tv_btn o_tv_btn_warn" t-on-click="fix" t-esc="state.data.alert.fix"/>
+        </div>
+
+        <div class="o_tv_eq_layout">
+            <div class="o_tv_eq_grid">
+                <t t-foreach="cards" t-as="c" t-key="c.t.id">
+                    <div t-attf-class="o_tv_eq_card {{ c.low ? 'low' : '' }}" t-att-style="'border-top-color:' + c.t.color">
+                        <div class="d-flex justify-content-between align-items-baseline gap-2">
+                            <div class="o_tv_eq_name" t-esc="c.t.name"/>
+                            <div t-attf-class="o_tv_eq_count {{ c.low ? 'text-warning-emphasis' : 'text-success' }}" t-esc="c.count"/>
+                        </div>
+                        <div class="o_tv_pips">
+                            <t t-foreach="c.pips" t-as="pip" t-key="pip.id">
+                                <span t-att-style="'background:' + (pip.on ? c.t.color : '#E3E8EA')"/>
+                            </t>
+                        </div>
+                        <div t-attf-class="o_tv_eq_sub {{ c.low ? 'text-warning-emphasis' : '' }}" t-esc="c.sub"/>
+                        <t t-foreach="c.members" t-as="m" t-key="m.p.id">
+                            <div t-attf-class="o_tv_agent {{ state.sel === m.p.id ? 'sel' : '' }} {{ m.dim ? 'dim' : '' }}" t-on-click="() => this.pick(m.p.id)">
+                                <span class="o_tv_av" t-att-style="m.av" t-esc="initials(m.p.name)"/>
+                                <div class="flex-grow-1 lh-sm overflow-hidden">
+                                    <div class="o_tv_agent_name" t-esc="m.p.name"/>
+                                    <div class="o_tv_agent_role" t-esc="m.p.role"/>
+                                </div>
+                                <span class="o_tv_st" t-att-style="m.chip" t-esc="m.status"/>
+                            </div>
+                        </t>
+                        <button t-if="c.canDrop" class="o_tv_drop" t-on-click="() => this.drop(c.t)"><i class="fa fa-sign-in"/> Prêter ici pour la journée</button>
+                    </div>
+                </t>
+            </div>
+
+            <aside class="o_tv_eq_panel">
+                <t t-set="s" t-value="selected"/>
+                <t t-if="state.create">
+                    <div class="d-flex justify-content-between"><h3>Nouvelle équipe</h3><a href="#" t-on-click.prevent="closePanel"><i class="fa fa-times"/></a></div>
+                    <label>NOM</label>
+                    <input class="o_tv_input" placeholder="ex. Marquage routier" t-model="state.form.name"/>
+                    <label>SUPERVISEUR</label>
+                    <select class="o_tv_input" t-on-change="onFormSup">
+                        <t t-foreach="state.data.supervisors" t-as="u" t-key="u.id"><option t-att-value="u.id" t-att-selected="isFormSup(u.id)" t-esc="u.name"/></t>
+                    </select>
+                    <t t-if="(state.data.departments or []).length">
+                        <label>SERVICE (ORGANIGRAMME)</label>
+                        <select class="o_tv_input" t-on-change="onFormDept">
+                            <option value="">— aucun —</option>
+                            <t t-foreach="state.data.departments" t-as="d" t-key="d.id"><option t-att-value="d.id" t-esc="deptLabel(d)"/></t>
+                        </select>
+                    </t>
+                    <label>AGENTS SANS ÉQUIPE</label>
+                    <div t-if="!pool.length" class="text-muted small">Aucun agent disponible.</div>
+                    <div class="o_tv_filters flex-wrap">
+                        <t t-foreach="pool" t-as="p" t-key="p.id">
+                            <button t-attf-class="o_tv_chip {{ state.form.picked[p.id] ? 'active' : '' }}" t-on-click="() => this.togglePick(p.id)" t-esc="p.name"/>
+                        </t>
+                    </div>
+                    <button class="o_tv_btn o_tv_btn_primary w-100 mt-3" t-att-disabled="!canCreate" t-on-click="createTeam">Créer l'équipe</button>
+                </t>
+                <t t-elif="s">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="o_tv_av o_tv_av_lg" t-att-style="'background:' + s.color + ';color:#fff'" t-esc="initials(s.p.name)"/>
+                        <div class="flex-grow-1 lh-sm">
+                            <div class="o_tv_eq_name" t-esc="s.p.name"/>
+                            <div class="o_tv_agent_role"><t t-esc="s.p.role"/> · <t t-esc="s.home.name"/></div>
+                        </div>
+                        <a href="#" t-on-click.prevent="closePanel"><i class="fa fa-times"/></a>
+                    </div>
+                    <t t-if="state.data.can_edit">
+                        <label>AUJOURD'HUI</label>
+                        <div class="o_tv_filters flex-wrap">
+                            <t t-foreach="stKeys" t-as="k" t-key="k">
+                                <button t-attf-class="o_tv_chip {{ s.p.status === k ? 'active' : '' }}" t-on-click="() => this.setStatus(k)" t-esc="ST[k].label"/>
+                            </t>
+                        </div>
+                        <label>PRÊTER POUR LA JOURNÉE À</label>
+                        <select class="o_tv_input" t-on-change="lend" t-att-disabled="s.p.status !== 'present'">
+                            <option value="" t-att-selected="!s.p.lent">— reste dans son équipe —</option>
+                            <t t-foreach="s.lendOptions" t-as="t" t-key="t.id"><option t-att-value="t.id" t-att-selected="s.p.lent === t.id" t-esc="t.name"/></t>
+                        </select>
+                        <label>CHANGER D'ÉQUIPE (DÉFINITIF)</label>
+                        <select class="o_tv_input" t-on-change="move">
+                            <t t-foreach="state.data.teams" t-as="t" t-key="t.id"><option t-att-value="t.id" t-att-selected="s.p.home === t.id" t-esc="t.name"/></t>
+                        </select>
+                        <p class="o_tv_note">Les changements du jour s'effacent automatiquement le lendemain.</p>
+                    </t>
+                </t>
+                <t t-else="">
+                    <h3>Organiser les équipes</h3>
+                    <p t-if="state.data.pointeuse" class="o_tv_hint"><i class="fa fa-clock-o"/> Les présences viennent de la pointeuse : un agent qui a pointé est présent, les autres sont comptés absents après l'heure limite.</p>
+                    <p class="text-muted">Cliquez sur un agent pour indiquer son statut du jour (présent, congé, formation, récupération) ou le prêter à une autre équipe. Les changements du jour s'effacent le lendemain ; un changement d'équipe définitif se fait aussi ici.</p>
+                    <p class="o_tv_note">Les absences peuvent être reprises du logiciel du personnel ; seul le statut est affiché, jamais le motif.</p>
+                </t>
+            </aside>
+        </div>
+    </div>
+</t>
+
+</templates>

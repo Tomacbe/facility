@@ -1,0 +1,45 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<odoo>
+    <!-- Accueil de FACILITY : le kanban « Suivi et planning » pour le bureau, l'app terrain pour les équipes -->
+    <record id="action_accueil" model="ir.actions.server">
+        <field name="name">FACILITY</field>
+        <field name="model_id" ref="model_travaux_demande"/>
+        <field name="state">code</field>
+        <field name="code">action = model._tv_accueil()</field>
+    </record>
+
+    <menuitem id="menu_root" name="FACILITY" web_icon="service_travaux,static/description/icon.png" groups="group_agent" sequence="5" action="action_accueil"/>
+
+    <!-- Écrans principaux (fidèles à la maquette) -->
+    <menuitem id="menu_equipes" name="Équipes" parent="menu_root" sequence="10" groups="group_superviseur" action="action_client_equipes"/>
+    <menuitem id="menu_a_traiter" name="Demandes à traiter" parent="menu_root" action="action_client_demandes" sequence="20" groups="group_superviseur"/>
+    <menuitem id="menu_suivi" name="Suivi et planning" parent="menu_root" sequence="30" groups="group_superviseur,group_secretariat" action="action_client_suivi"/>
+    <menuitem id="menu_terrain" name="App terrain" parent="menu_root" sequence="40" action="action_client_terrain"/>
+    <menuitem id="menu_direction" name="Tableau de bord" parent="menu_root" sequence="50" groups="group_superviseur,group_direction"/>
+    <menuitem id="menu_direction_board" name="Vue d'ensemble" parent="menu_direction" action="action_client_direction" sequence="1"/>
+    <menuitem id="menu_direction_analyse" name="Analyse (tableaux croisés)" parent="menu_direction" action="action_analyse" sequence="4"/>
+
+    <!-- Vues Odoo détaillées et configuration -->
+    <menuitem id="menu_config" name="Configuration" parent="menu_root" sequence="90" groups="group_superviseur"/>
+    <menuitem id="menu_config_reglages" name="Réglages (commune, rôles, pointeuse)" parent="menu_config" action="action_travaux_config" sequence="0"
+              groups="base.group_system"/>
+    <menuitem id="menu_config_toutes" name="Toutes les demandes et tâches" parent="menu_config" action="action_toutes" sequence="1"/>
+    <menuitem id="menu_config_planning" name="Calendrier" parent="menu_config" action="action_planning" sequence="2"/>
+    <menuitem id="menu_config_heures" name="Heures des équipes" parent="menu_config" action="action_heures_equipe" sequence="3"/>
+    <menuitem id="menu_config_entretiens" name="Entretiens" parent="menu_config" sequence="4"/>
+    <menuitem id="menu_config_recurrences" name="Circuits et actions récurrentes" parent="menu_config_entretiens" action="action_recurrences" sequence="2"/>
+    <menuitem id="menu_config_circuits" name="Tournées" parent="menu_config_entretiens" action="action_circuits" sequence="1"/>
+    <menuitem id="menu_config_services" name="Organigramme (services)" parent="menu_config" action="hr.hr_department_tree_action" sequence="9"/>
+    <menuitem id="menu_config_equipes" name="Équipes" parent="menu_config" action="action_equipes" sequence="10"/>
+    <menuitem id="menu_config_agents" name="Agents (présences)" parent="menu_config" action="action_equipes_jour" sequence="11"/>
+    <menuitem id="menu_config_categories" name="Catégories de demandes" parent="menu_config" action="action_categories" sequence="12"/>
+    <menuitem id="menu_config_transfert" name="Contacts de transfert" parent="menu_config" action="action_transfert_contacts" sequence="14"/>
+    <menuitem id="menu_recensement" name="Jeux de données" parent="menu_config" action="action_recensement" sequence="5"
+              groups="group_superviseur,group_secretariat"/>
+    <menuitem id="menu_config_lieux" name="# Lieux et objets" parent="menu_config" action="action_lieux" sequence="13" groups="group_superviseur"/>
+    <menuitem id="menu_config_ia" name="Assistant IA" parent="menu_config" action="action_ia_config" sequence="20" groups="base.group_system"/>
+
+    <!-- Demandeurs (autres services) : une application à part, réduite à « encoder et suivre » -->
+    <menuitem id="menu_demandeur_root" name="Demandes au service technique" web_icon="service_travaux,static/description/icon.png"
+              groups="group_demandeur" sequence="6" action="action_client_mes_demandes"/>
+</odoo>

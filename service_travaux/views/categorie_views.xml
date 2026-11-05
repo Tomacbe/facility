@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<odoo>
+    <record id="view_categorie_tree" model="ir.ui.view">
+        <field name="name">travaux.categorie.tree</field>
+        <field name="model">travaux.categorie</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="equipe_defaut_id"/>
+                <field name="hors_competence"/>
+                <field name="service_competent" invisible="not hors_competence"/>
+                <field name="transfert_contact_id" optional="show"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_categories" model="ir.actions.act_window">
+        <field name="name">Catégories de demandes</field>
+        <field name="res_model">travaux.categorie</field>
+        <field name="view_mode">list</field>
+    </record>
+</odoo>

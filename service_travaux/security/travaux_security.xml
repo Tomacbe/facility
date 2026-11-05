@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="module_category_travaux" model="ir.module.category">
+        <field name="name">FACILITY</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="privilege_travaux" model="res.groups.privilege">
+        <field name="name">FACILITY – Service technique</field>
+        <field name="category_id" ref="module_category_travaux"/>
+    </record>
+    <record id="group_agent" model="res.groups">
+        <field name="name">Équipe terrain</field>
+        <field name="privilege_id" ref="privilege_travaux"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Voit uniquement le travail de son équipe (app terrain).</field>
+    </record>
+    <record id="group_demandeur" model="res.groups">
+        <field name="name">Demandeur</field>
+        <field name="privilege_id" ref="privilege_travaux"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Agent d'un autre service (école, administration…) : encode ses demandes et les suit, sans les transformer en bon de travail.</field>
+    </record>
+    <record id="group_superviseur" model="res.groups">
+        <field name="name">Superviseur</field>
+        <field name="privilege_id" ref="privilege_travaux"/>
+        <field name="implied_ids" eval="[(4, ref('group_agent'))]"/>
+        <field name="comment">Responsable de plusieurs équipes : voit et organise le travail de ses équipes.</field>
+    </record>
+    <record id="group_secretariat" model="res.groups">
+        <field name="name">Secrétariat</field>
+        <field name="privilege_id" ref="privilege_travaux"/>
+        <field name="implied_ids" eval="[(4, ref('group_agent'))]"/>
+        <field name="comment">Encode les demandes et a une vue globale de toutes les équipes.</field>
+    </record>
+    <record id="group_direction" model="res.groups">
+        <field name="name">Direction</field>
+        <field name="privilege_id" ref="privilege_travaux"/>
+        <field name="implied_ids" eval="[(4, ref('group_superviseur')), (4, ref('group_secretariat'))]"/>
+        <field name="user_ids" eval="[(4, ref('base.user_root')), (4, ref('base.user_admin'))]"/>
+        <field name="comment">Vue globale et contrôle du fonctionnement.</field>
+    </record>
+
+    <!-- Organigramme : chaque équipe voit son travail, le superviseur ses équipes, secrétariat et direction tout -->
+    <record id="rule_demande_agent" model="ir.rule">
+        <field name="name">Équipe : travail de son équipe</field>
+        <field name="model_id" ref="model_travaux_demande"/>
+        <field name="groups" eval="[(4, ref('group_agent'))]"/>
+        <field name="domain_force">['|', ('create_uid', '=', user.id), '&amp;', ('state', 'not in', ('recue', 'precision')), '|', ('equipe_id.member_ids.user_id', '=', user.id), ('equipe_id.jour_ids.user_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_demande_superviseur" model="ir.rule">
+        <field name="name">Superviseur : demandes à attribuer et travail de ses équipes</field>
+        <field name="model_id" ref="model_travaux_demande"/>
+        <field name="groups" eval="[(4, ref('group_superviseur'))]"/>
+        <field name="domain_force">['|', '|', ('equipe_id', '=', False), ('equipe_id.responsable_ids', 'in', user.id), ('create_uid', '=', user.id)]</field>
+    </record>
+    <record id="rule_demande_global" model="ir.rule">
+        <field name="name">Secrétariat et direction : vue globale</field>
+        <field name="model_id" ref="model_travaux_demande"/>
+        <field name="groups" eval="[(4, ref('group_secretariat'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+
+    <record id="rule_demande_demandeur" model="ir.rule">
+        <field name="name">Demandeur : uniquement ses demandes</field>
+        <field name="model_id" ref="model_travaux_demande"/>
+        <field name="groups" eval="[(4, ref('group_demandeur'))]"/>
+        <field name="domain_force">[('demandeur_user_id', '=', user.id)]</field>
+    </record>
+
+    <record id="rule_vue_read" model="ir.rule">
+        <field name="name">Vues : les miennes et les vues partagées</field>
+        <field name="model_id" ref="model_travaux_vue"/>
+        <field name="domain_force">['|', ('user_id', '=', user.id), ('partagee', '=', True)]</field>
+        <field name="perm_read" eval="True"/><field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/><field name="perm_unlink" eval="False"/>
+    </record>
+    <record id="rule_vue_write" model="ir.rule">
+        <field name="name">Vues : modifier uniquement les miennes</field>
+        <field name="model_id" ref="model_travaux_vue"/>
+        <field name="domain_force">[('user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="False"/><field name="perm_write" eval="True"/>
+        <field name="perm_create" eval="True"/><field name="perm_unlink" eval="True"/>
+    </record>
+</odoo>

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- # objets de départ (Avaloir, Poubelle, Pelouse, Haie…), créés seulement s'ils manquent -->
+    <function model="travaux.carte.demo" name="_types_de_base"/>
+</odoo>

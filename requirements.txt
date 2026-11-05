@@ -1,0 +1,2 @@
+# Dépendances Python des modules (service_travaux_carte)
+requests

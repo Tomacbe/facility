@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<odoo>
+    <!-- Liste des interventions, style messagerie -->
+    <!-- Une intervention = une conversation -->
+    <!-- Signaler depuis le terrain -->
+    <record id="view_demande_hours_tree" model="ir.ui.view">
+        <field name="name">travaux.demande.tree.heures</field>
+        <field name="model">travaux.demande</field>
+        <field name="priority">30</field>
+        <field name="arch" type="xml">
+            <list string="Heures de l'équipe" editable="bottom" create="0">
+                <field name="date_fin" string="Terminé le" readonly="1"/>
+                <field name="name" readonly="1"/>
+                <field name="titre" readonly="1"/>
+                <field name="type_travail" readonly="1"/>
+                <field name="equipe_id" readonly="1"/>
+                <field name="duree_mesuree" widget="float_time" sum="Total"/>
+                <field name="state" widget="badge" readonly="1"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_heures_equipe" model="ir.actions.act_window">
+        <field name="name">Heures de l'équipe</field>
+        <field name="res_model">travaux.demande</field>
+        <field name="view_mode">list,pivot</field>
+        <field name="domain">[('date_fin', '!=', False)]</field>
+        <field name="context">{'search_default_grp_jour_fin': 1}</field>
+        <field name="view_ids" eval="[(5, 0, 0),             (0, 0, {'view_mode': 'list', 'view_id': ref('view_demande_hours_tree')}),             (0, 0, {'view_mode': 'pivot', 'view_id': ref('view_demande_pivot')})]"/>
+        <field name="search_view_id" ref="view_demande_search"/>
+    </record>
+</odoo>

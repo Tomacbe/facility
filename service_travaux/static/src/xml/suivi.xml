@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="service_travaux.Suivi" owl="1">
+    <div class="o_action o_tv_page o_tv_suivi">
+        <div class="o_tv_page_head">
+            <div>
+                <h1><t t-esc="supName"/> · <t t-esc="shownTeams.length"/> équipe(s) affichée(s)</h1>
+                <div class="o_tv_lead" t-esc="weekInfo"/>
+            </div>
+            <div class="flex-grow-1"/>
+            <button t-if="state.data.is_sup" class="o_tv_btn o_tv_btn_primary me-2" t-on-click="newFiche" title="Créer un travail pour une équipe sans passer par « Demandes à traiter »"><i class="fa fa-plus"/> Nouvelle fiche de travail</button>
+            <label class="o_tv_small_label mb-0"><t t-if="(state.data.services or []).length">Service ou superviseur</t><t t-else="">Superviseur</t></label>
+            <select class="o_tv_input o_tv_input_inline" t-on-change="onSup">
+                <option value="all" t-att-selected="state.sup === 'all'">Tous</option>
+                <option t-if="hasMine" value="mine" t-att-selected="state.sup === 'mine'">Mes équipes</option>
+                <optgroup t-if="(state.data.services or []).length" label="Services">
+                    <t t-foreach="state.data.services" t-as="d" t-key="d.id">
+                        <option t-att-value="'d' + d.id" t-att-selected="isSupSel('d' + d.id)" t-esc="deptLabel(d)"/>
+                    </t>
+                </optgroup>
+                <optgroup label="Superviseurs">
+                    <t t-foreach="state.data.supervisors" t-as="s" t-key="s.id">
+                        <option t-att-value="s.id" t-att-selected="isSupSel(s.id)" t-esc="s.name"/>
+                    </t>
+                </optgroup>
+            </select>
+        </div>
+        <div t-if="state.data.is_sup and (state.data.a_relancer or []).length" class="o_tv_relance">
+            <i class="fa fa-lightbulb-o"/> <b>Tournées à relancer :</b>
+            <t t-foreach="state.data.a_relancer" t-as="r" t-key="r.id">
+                <span class="o_tv_relance_item"><t t-esc="r.name"/> · <t t-esc="r.team"/> · <t t-if="r.jours === null">jamais faite</t><t t-else="">il y a <t t-esc="r.jours"/> j</t>
+                    <button class="o_tv_btn o_tv_btn_primary o_tv_btn_xs" t-on-click="() => this.lancerTournee(r.id)"><i class="fa fa-play"/> Lancer</button></span>
+            </t>
+        </div>
+        <div class="o_tv_toolbar o_tv_views">
+            <span class="o_tv_small_label">VUES</span>
+            <button t-if="hasMine" t-attf-class="o_tv_viewchip {{ state.viewId === 'mine' ? 'on' : '' }}" t-on-click="() => this.selectView('mine')"><i class="fa fa-user"/> Mes équipes</button>
+            <button t-attf-class="o_tv_viewchip {{ state.viewId === 'all' ? 'on' : '' }}" t-on-click="() => this.selectView('all')"><i class="fa fa-sitemap"/> Toutes les équipes</button>
+            <t t-foreach="views" t-as="v" t-key="v.id">
+                <span t-attf-class="o_tv_viewchip {{ state.viewId === v.id ? 'on' : '' }}" t-on-click="() => this.selectView(v)">
+                    <i t-attf-class="fa {{ v.shared ? 'fa-users' : 'fa-bookmark' }}"/> <t t-esc="v.name"/>
+                    <a t-if="v.mine" href="#" class="o_tv_viewdel" title="Supprimer la vue" t-on-click.prevent.stop="() => this.deleteView(v)"><i class="fa fa-times"/></a>
+                </span>
+            </t>
+            <button class="o_tv_viewchip o_tv_viewadd" title="Enregistrer les équipes cochées comme une vue" t-on-click="saveView"><i class="fa fa-plus"/> Enregistrer la sélection</button>
+        </div>
+        <div class="px-4"><TvHelp id="'suivi_' + state.view" t-key="state.view" text="help[state.view].text" steps="help[state.view].steps"/></div>
+        <div class="o_tv_toolbar">
+            <span class="o_tv_small_label">ÉQUIPES</span>
+            <t t-foreach="supTeams" t-as="t" t-key="t.id">
+                <button t-attf-class="o_tv_teamchip {{ state.off[t.id] ? 'off' : '' }}" t-on-click="() => this.toggleTeam(t.id)">
+                    <span class="o_tv_dot" t-att-style="'background:' + t.color"/> <t t-esc="t.name"/>
+                </button>
+            </t>
+            <div class="flex-grow-1"/>
+            <t t-if="state.view !== 'zones'">
+                <button class="o_tv_btn o_tv_btn_light" title="Période précédente" t-on-click="() => this.shiftK(-1)"><i class="fa fa-chevron-left"/></button>
+                <b class="o_tv_klabel" t-esc="kLabel"/>
+                <button class="o_tv_btn o_tv_btn_light" title="Période suivante" t-on-click="() => this.shiftK(1)"><i class="fa fa-chevron-right"/></button>
+                <button t-if="state.koff" class="o_tv_btn o_tv_btn_light" t-on-click="() => this.shiftK(0)">Aujourd'hui</button>
+                <div class="o_tv_seg o_tv_seg_grey me-2">
+                    <button t-attf-class="{{ state.kmode === 'week' ? 'on' : '' }}" t-on-click="() => this.setKMode('week')">Semaine</button>
+                    <button t-attf-class="{{ state.kmode === 'month' ? 'on' : '' }}" t-on-click="() => this.setKMode('month')">Mois</button>
+                </div>
+            </t>
+            <div class="o_tv_seg o_tv_seg_grey">
+                <button t-attf-class="{{ state.view === 'kanban' ? 'on' : '' }}" t-on-click="() => this.setView('kanban')">Kanban</button>
+                <button t-attf-class="{{ state.view === 'planning' ? 'on' : '' }}" t-on-click="() => this.setView('planning')">Planning</button>
+                <button t-attf-class="{{ state.view === 'zones' ? 'on' : '' }}" t-on-click="() => this.setView('zones')">Tournées</button>
+            </div>
+        </div>
+
+        <div t-attf-class="o_tv_suivi_body {{ state.conv ? 'with_detail' : '' }}">
+            <!-- ================================================= KANBAN -->
+            <div t-if="state.view === 'kanban'" class="o_tv_kanban o_tv_kanban5">
+                <t t-foreach="COLS" t-as="col" t-key="col.key">
+                    <t t-set="cards" t-value="column(col.key)"/>
+                    <div t-attf-class="o_tv_col {{ col.key === 'recue' ? 'o_tv_col_pile' : '' }} {{ state.kover === col.key ? 'o_tv_col_over' : '' }}"
+                         t-on-dragover="(ev) => this.onColOver(ev, col.key)" t-on-drop="() => this.onColDrop(col.key)">
+                        <div class="o_tv_col_head"><span class="o_tv_dot" t-att-style="'background:' + col.color"/> <t t-if="col.key === 'close'">Clôturées</t><t t-else="" t-esc="col.title"/><span class="ms-auto" t-esc="cards.length"/></div>
+                        <div t-if="col.key === 'recue' and !cards.length" class="o_tv_meta p-2">Aucune demande en attente.</div>
+                        <t t-foreach="cards" t-as="j" t-key="j.id">
+                            <div t-attf-class="o_tv_kcard {{ state.selId === j.id ? 'sel' : '' }}" t-att-draggable="state.data.is_sup ? 'true' : 'false'"
+                                 t-on-dragstart="() => this.onCardDrag(j)" t-on-dragend="onCardDragEnd">
+                                <div t-on-click="() => this.openCard(j)">
+                                    <img t-if="j.has_avant" class="o_tv_kcover" t-att-src="imgUrl(j.id, j.has_apres and ['valider','close'].includes(col.key) ? 'photo_apres' : 'photo_avant', '480x300')" alt=""/>
+                                    <div class="p-2">
+                                        <div class="o_tv_meta"><i t-if="j.type !== 'demande'" t-attf-class="fa {{ KIND[j.type][0] }} me-1" t-att-title="KIND[j.type][1]"/><t t-esc="j.ref"/> <span t-if="j.urgent and col.key !== 'close'" class="o_tv_st o_tv_urgent">URGENT</span> <span t-if="j.reports and col.key !== 'close'" class="o_tv_report" title="Planifiée, non clôturée : a glissé de semaine">reportée <t t-esc="j.reports"/>×</span></div>
+                                        <div class="o_tv_qtitle" t-esc="j.titre"/>
+                                        <div class="o_tv_meta"><span t-if="j.lieu" t-attf-class="o_tv_lieu o_tv_lieu_sm {{ j.lieu_state === 'propose' ? 'o_tv_lieu_prop' : '' }}" t-esc="j.lieu"/><t t-foreach="j.objets or []" t-as="o" t-key="o.id"><span t-attf-class="o_tv_lieu o_tv_obj o_tv_lieu_sm {{ o.state === 'propose' ? 'o_tv_lieu_prop' : '' }}" t-esc="o.name"/></t> <t t-esc="j.adresse"/></div>
+                                        <div class="d-flex justify-content-between align-items-center mt-1">
+                                            <span class="o_tv_teamtag" t-att-style="'border-left-color:' + j.equipe_color" t-esc="j.equipe or 'Non attribuée'"/>
+                                            <span class="o_tv_meta"><t t-if="j.avancement"><b><t t-esc="j.avancement"/> %</b> · </t><t t-if="j.tz_total"><b><t t-esc="j.tz_done"/>/<t t-esc="j.tz_total"/> zones</b> · </t><t t-if="j.pret"><b style="color:#9A3412">à planifier</b></t><t t-elif="j.date_prevue" t-esc="shortDate(j.date_prevue)"/><t t-else="">reçue <t t-esc="j.source"/></t></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div t-if="col.key === 'recue' and j.pret" class="px-2 pb-2">
+                                    <button class="o_tv_btn o_tv_btn_primary w-100 o_tv_btn_xs py-1" t-on-click="() => this.openFiche(j.id)"><i class="fa fa-calendar-check-o"/> Planifier et envoyer</button>
+                                </div>
+                                <div t-elif="col.key === 'recue'" class="px-2 pb-2">
+                                    <select class="o_tv_input o_tv_input_sm o_tv_assign_sel" t-on-change="(ev) => this.assignFromCard(j, ev)">
+                                        <option value="">Attribuer à une équipe…</option>
+                                        <t t-foreach="state.data.teams" t-as="t" t-key="t.id">
+                                            <option t-att-value="t.id"><t t-esc="t.name"/> · <t t-esc="t.presence"/></option>
+                                        </t>
+                                    </select>
+                                </div>
+                            </div>
+                        </t>
+                    </div>
+                </t>
+            </div>
+
+            <!-- ================================================= ZONES -->
+            <div t-elif="state.view === 'zones'" class="o_tv_zs_wrap">
+                <div class="o_tv_plan_bar">
+                    <div class="flex-grow-1"/>
+                    <button t-if="state.zones.is_sup" class="o_tv_btn o_tv_btn_light" t-on-click="openCircuits"><i class="fa fa-cog"/> Gérer les tournées</button>
+                </div>
+                <div t-if="!circuits.length" class="o_tv_empty">Aucune tournée pour ces équipes. « Gérer les tournées » permet d'en créer une.</div>
+                <div class="o_tv_zs_grid">
+                    <t t-foreach="circuits" t-as="c" t-key="c.id">
+                        <div t-attf-class="o_tv_zs_card {{ c.en_saison ? '' : 'is_off' }}">
+                            <div class="o_tv_zs_head">
+                                <div class="flex-grow-1">
+                                    <div class="o_tv_zs_name"><span class="o_tv_dot" t-att-style="'background:' + c.color"/> <t t-esc="c.name"/></div>
+                                    <div class="o_tv_zs_sub"><t t-esc="c.team"/> · <t t-esc="c.saison"/><t t-if="!c.en_saison"> · hors saison</t></div>
+                                </div>
+                                <div class="text-end">
+                                    <div t-if="c.lance" class="o_tv_launch on"><i class="fa fa-play-circle"/> Lancée<t t-if="c.lance_le"> le <t t-esc="shortDate(c.lance_le)"/></t></div>
+                                    <div t-elif="c.a_relancer" class="o_tv_launch late"><i class="fa fa-clock-o"/> <t t-if="c.jours === null">Jamais faite</t><t t-else="">Il y a <t t-esc="c.jours"/> j</t></div>
+                                    <div class="o_tv_zs_count"><b t-esc="c.done"/> / <t t-esc="c.total"/></div>
+                                    <div class="o_tv_zs_sub"><t t-if="c.mode === 'lot'">en lot<t t-if="c.lot_dernier"> · <t t-esc="c.lot_dernier"/></t></t><t t-else="">une par une</t></div>
+                                </div>
+                            </div>
+                            <div class="o_tv_zbar"><span t-attf-style="width:{{ c.pct }}%"/></div>
+                            <div t-if="state.zones.is_sup" class="o_tv_launchbar">
+                                <t t-if="c.lance">
+                                    <span class="flex-grow-1 o_tv_meta">En cours<t t-if="c.mode !== 'lot'"> : <b><t t-esc="c.bt_done"/> / <t t-esc="c.total"/> zones</b> passées dans ce lancement</t></span>
+                                    <button class="o_tv_btn o_tv_btn_light o_tv_btn_xs" t-on-click="() => this.arreterTournee(c)">Arrêter</button>
+                                </t>
+                                <t t-else="">
+                                    <select class="o_tv_input o_tv_input_sm mb-0" t-att-aria-label="'Jour de début de ' + c.name" t-on-change="(ev) => this.setLaunchDay(c.id, ev)">
+                                        <t t-foreach="launchDays" t-as="o" t-key="o.v"><option t-att-value="o.v" t-esc="o.label"/></t>
+                                    </select>
+                                    <button class="o_tv_btn o_tv_btn_primary o_tv_btn_xs" t-on-click="() => this.lancerTournee(c.id)"><i class="fa fa-play"/> Lancer la tournée</button>
+                                </t>
+                            </div>
+                            <div t-if="c.retard and c.en_saison" class="o_tv_zs_alert"><i class="fa fa-exclamation-triangle"/> <t t-esc="c.retard"/> zone(s) sans passage depuis plus de <t t-esc="c.delai"/> jours</div>
+                            <div class="o_tv_zs_list">
+                                <t t-foreach="c.zones" t-as="z" t-key="z.id">
+                                    <div t-attf-class="o_tv_zs_row {{ z.fait ? 'is_done' : '' }} {{ z.retard and !z.fait and c.en_saison ? 'is_late' : '' }}">
+                                        <i t-attf-class="fa {{ z.fait ? 'fa-check-circle' : 'fa-circle-o' }}"/>
+                                        <span class="o_tv_zs_zname" t-esc="z.name"/>
+                                        <img t-if="z.thumb" t-att-src="z.thumb" alt="Photo" title="Voir la photo" t-on-click="() => this.zoneView(z)"/>
+                                        <span class="o_tv_zs_last" t-att-title="z.par"><t t-esc="zoneDate(z)"/> <em t-esc="zoneAge(z)"/></span>
+                                        <button t-if="z.today" class="o_tv_zs_mini" title="Annuler le passage d'aujourd'hui" t-on-click="() => this.zoneAnnuler(z)"><i class="fa fa-undo"/></button>
+                                        <button t-elif="!z.fait" class="o_tv_zs_mini" title="Marquer comme fait aujourd'hui" t-on-click="() => this.zoneFait(z)"><i class="fa fa-check"/></button>
+                                        <span t-else="" class="o_tv_zs_mini is_void"/>
+                                    </div>
+                                </t>
+                            </div>
+                            <div class="o_tv_zs_foot">
+                                <a href="#" t-on-click.prevent="() => this.openPassages(c)">Historique des passages</a>
+                                <a t-if="state.zones.is_sup" href="#" t-on-click.prevent="() => this.openCircuit(c)">Modifier les zones</a>
+                            </div>
+                        </div>
+                    </t>
+                </div>
+            </div>
+
+            <!-- ================================================= PLANNING -->
+            <div t-else="" class="o_tv_plan_wrap">
+                <div class="o_tv_plan_bar">
+                    <t t-foreach="KIND_FILTERS" t-as="f" t-key="f[0]">
+                        <button t-attf-class="o_tv_kchip {{ state.kind === f[0] ? 'on' : '' }}" t-on-click="() => this.setKind(f[0])"><i t-attf-class="fa {{ f[2] }}"/> <t t-esc="f[1]"/></button>
+                    </t>
+                    <div class="flex-grow-1"/>
+                    <div t-if="state.planPick" class="o_tv_pickhint">Choisissez une case pour placer <t t-esc="pickRef"/></div>
+                    <button class="o_tv_btn o_tv_btn_light" title="Tournées, circuits et maintenances qui reviennent : elles se placent toutes seules dans le planning" t-on-click="openRecurrences"><i class="fa fa-repeat"/> Tâches récurrentes</button>
+                </div>
+                <div class="o_tv_plan_main">
+                    <!-- pile des demandes à planifier -->
+                    <div class="o_tv_plan_side">
+                        <a href="#" class="o_tv_pile_head" t-on-click.prevent="openDemandes">
+                            <span class="o_tv_pile_n" t-esc="pile.length"/>
+                            <span class="o_tv_pile_t">demandes à traiter<t t-if="pilePret"> · dont <t t-esc="pilePret"/> à planifier</t></span>
+                            <span class="o_tv_small_link">Ouvrir la boîte de réception →</span>
+                        </a>
+                        <div class="o_tv_pile">
+                            <t t-foreach="pile" t-as="j" t-key="j.id">
+                                <div t-attf-class="o_tv_pile_card {{ state.planPick === j.id ? 'picked' : '' }}" draggable="true"
+                                     t-on-dragstart="() => this.onDragStart(j.id)" t-on-click="() => this.pick(j)">
+                                    <div class="o_tv_meta"><t t-esc="j.ref"/> <span t-if="j.urgent" class="o_tv_st o_tv_urgent">URGENT</span>
+                                        <span t-if="j.pret" class="o_tv_st" style="background:#FFF4E5;color:#9A3412">→ <t t-esc="j.equipe"/></span></div>
+                                    <div class="o_tv_pile_title" t-esc="j.titre"/>
+                                    <div class="o_tv_meta text-truncate"><span t-if="j.lieu" t-attf-class="o_tv_lieu o_tv_lieu_sm {{ j.lieu_state === 'propose' ? 'o_tv_lieu_prop' : '' }}" t-esc="j.lieu"/><t t-foreach="j.objets or []" t-as="o" t-key="o.id"><span t-attf-class="o_tv_lieu o_tv_obj o_tv_lieu_sm {{ o.state === 'propose' ? 'o_tv_lieu_prop' : '' }}" t-esc="o.name"/></t> <t t-esc="j.adresse"/></div>
+                                </div>
+                            </t>
+                            <div t-if="!pile.length" class="o_tv_meta p-2">Rien à planifier.</div>
+                        </div>
+                        <a href="#" class="o_tv_terrain_card" t-on-click.prevent="() => this.action.doAction('service_travaux.action_client_terrain')">
+                            <b>App terrain</b><span>Voir ce que reçoivent les équipes →</span>
+                        </a>
+                        <div class="o_tv_note mt-0">Glissez une demande (ou cliquez-la puis « + Placer ») dans la case équipe × jour : elle est imputée à l'équipe et envoyée dans son app. Les équipes organisent librement leur semaine ; chaque déplacement et chaque durée remonte ici.</div>
+                    </div>
+                    <!-- grille équipes × jours -->
+                    <div class="o_tv_grid">
+                        <div class="o_tv_grid_row o_tv_grid_head" t-att-style="gridStyle">
+                            <div class="o_tv_grid_team">Équipe · heures</div>
+                            <t t-foreach="cols" t-as="dd" t-key="dd.iso"><div t-attf-class="o_tv_grid_day {{ dd.today ? 'today' : '' }}" t-esc="dd.label"/></t>
+                        </div>
+                        <div class="o_tv_grid_body">
+                            <t t-foreach="shownTeams" t-as="t" t-key="t.id">
+                                <t t-set="ri" t-value="rowInfo(t)"/>
+                                <div class="o_tv_grid_row" t-att-style="gridStyle">
+                                    <div class="o_tv_grid_team" t-att-style="'border-left-color:' + t.color">
+                                        <b t-esc="t.name"/>
+                                        <span class="o_tv_meta" t-esc="t.people or t.presence"/>
+                                        <span class="o_tv_rowh">Prévu <t t-esc="fmtH(ri.planned)"/> / <t t-esc="ri.cap"/> h</span>
+                                        <span class="o_tv_rowh">Déclaré <t t-esc="fmtH(ri.declared)"/></span>
+                                        <span class="o_tv_rowload" t-att-style="'color:' + ri.color" t-esc="ri.label"/>
+                                    </div>
+                                    <t t-foreach="cols" t-as="dd" t-key="dd.iso">
+                                        <t t-set="ch" t-value="cellHours(t, dd.iso)"/>
+                                        <div t-attf-class="o_tv_grid_cell {{ dd.today ? 'today' : '' }}" t-on-dragover.prevent="noop" t-on-drop.prevent="() => this.onDrop(t.id, dd.iso)">
+                                            <div class="o_tv_cellh" t-if="ch.h"><span t-attf-class="{{ ch.over ? 'text-danger fw-bold' : '' }}" t-esc="fmtH(ch.h)"/></div>
+                                            <t t-foreach="cell(t.id, dd.iso)" t-as="k" t-key="k.id">
+                                                <div t-attf-class="o_tv_item {{ ['valider','close'].includes(k.state) ? 'done' : '' }} {{ state.selId === k.id ? 'sel' : '' }} {{ k.type === 'demande' ? 'dt' : '' }}"
+                                                     draggable="true" t-on-dragstart="() => this.onDragStart(k.id)" t-on-click="() => this.openDetail(k.id)">
+                                                    <div class="d-flex align-items-center gap-1"><i t-attf-class="fa {{ KIND[k.type][0] }}"/><span class="o_tv_item_t" t-esc="k.titre"/></div>
+                                                    <div t-attf-class="o_tv_item_s {{ ['valider','close'].includes(k.state) ? 'ok' : '' }}"><t t-esc="taskSub(k)"/><t t-if="k.avancement"> · <t t-esc="k.avancement"/> %</t> <span t-if="k.reports and !['valider','close'].includes(k.state)" class="o_tv_report" title="Planifiée, non clôturée : a glissé de semaine">reportée <t t-esc="k.reports"/>×</span></div>
+                                                </div>
+                                            </t>
+                                            <button t-if="state.planPick" class="o_tv_place" t-on-click="() => this.place(t.id, dd.iso)">+ Placer</button>
+                                            <t t-if="isAdd(t.id, dd.iso)">
+                                                <div class="o_tv_addform">
+                                                    <input class="o_tv_input o_tv_input_sm" placeholder="Tâche" t-att-value="state.add.titre" t-on-input="(ev) => this.onAdd('titre', ev)"/>
+                                                    <select class="o_tv_input o_tv_input_sm" t-on-change="(ev) => this.onAdd('type', ev)">
+                                                        <option value="maintenance">Maintenance</option>
+                                                        <option value="tournee">Tournée</option>
+                                                        <option value="demande">Demande</option>
+                                                    </select>
+                                                    <div class="d-flex gap-1 align-items-center">
+                                                        <input type="number" min="0" step="0.5" class="o_tv_input o_tv_input_sm" t-att-value="state.add.h" t-on-input="(ev) => this.onAdd('h', ev)"/><span class="o_tv_meta">h</span>
+                                                    </div>
+                                                    <div class="d-flex gap-1">
+                                                        <button class="o_tv_btn o_tv_btn_primary py-0 px-2" t-on-click="saveAdd">OK</button>
+                                                        <button class="o_tv_btn o_tv_btn_light py-0 px-2" t-on-click="cancelAdd">×</button>
+                                                    </div>
+                                                </div>
+                                            </t>
+                                            <button t-elif="!state.planPick" class="o_tv_addbtn" title="Ajouter une tâche" t-on-click="() => this.startAdd(t.id, dd.iso)">+</button>
+                                        </div>
+                                    </t>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================================================= DÉTAIL -->
+            <aside t-if="state.conv" class="o_tv_sdetail">
+                <t t-set="c" t-value="state.conv"/>
+                <div class="o_tv_sphoto">
+                    <img t-if="state.showAfter and c.has_apres" t-att-src="imgUrl(c.id, 'photo_apres')" alt="Après"/>
+                    <img t-elif="c.has_avant" t-att-src="imgUrl(c.id, 'photo_avant')" alt="Avant"/>
+                    <div t-else="" t-attf-class="o_tv_nophoto o_tv_kind_{{ c.type }}"><i t-attf-class="fa {{ KIND[c.type][0] }} fa-2x"/><span t-esc="KIND[c.type][1]"/></div>
+                    <div class="o_tv_sphoto_tabs" t-if="c.has_avant and c.has_apres">
+                        <button t-attf-class="o_tv_tag o_tv_tag_avant {{ !state.showAfter ? 'on' : '' }}" t-on-click="() => this.setAfter(false)">AVANT</button>
+                        <button t-attf-class="o_tv_tag o_tv_tag_apres {{ state.showAfter ? 'on' : '' }}" t-on-click="() => this.setAfter(true)">APRÈS</button>
+                    </div>
+                    <button class="o_tv_sclose" t-on-click="closeDetail" title="Fermer"><i class="fa fa-times"/></button>
+                </div>
+                <div class="p-3">
+                    <div class="d-flex gap-2 align-items-center"><span class="o_tv_meta" t-esc="c.ref"/><span class="o_tv_st" t-att-style="ST_STYLE[c.st]" t-esc="c.st_label"/>
+                        <select t-if="c.is_sup and c.state !== 'transferee'" class="o_tv_input o_tv_input_sm o_tv_statsel mb-0" t-on-change="onStatutSelect" title="Remettre dans un autre statut">
+                            <option value="">Changer le statut…</option>
+                            <t t-foreach="statutChoices" t-as="o" t-key="o[0]"><option t-att-value="o[0]" t-esc="o[1]"/></t>
+                        </select>
+                        <a class="o_tv_small_link ms-auto" t-att-href="pdfUrl(c.id)" target="_blank" title="PDF de la fiche"><i class="fa fa-file-pdf-o"/> PDF</a></div>
+                    <h3 class="mt-1" t-esc="c.titre"/>
+                    <div class="o_tv_grid2">
+                        <div><label>Lieu</label><b t-if="c.lieu or (c.objets or []).length" class="d-block"><t t-esc="c.lieu"/><t t-foreach="c.objets or []" t-as="o" t-key="o.id"><t t-esc="o.name"/></t></b><span t-esc="c.adresse or '—'"/></div>
+                        <div><label>Origine</label><b t-esc="c.type === 'demande' ? c.source : KIND[c.type][1]"/></div>
+                        <div t-if="c.lieu_note" class="o_tv_span2"><label>À savoir sur ce lieu</label><span t-esc="c.lieu_note"/></div>
+                        <div t-if="c.precision" class="o_tv_span2"><label>Précision sur l'endroit</label><span t-esc="c.precision"/></div>
+                        <div t-if="c.liste" class="o_tv_span2"><label><i class="fa fa-repeat"/> Circuit (liste indicative)</label><div class="o_tv_liste" t-esc="c.liste"/></div>
+                        <div><label>Équipe</label>
+                            <select t-if="['planif','recue','precision'].includes(c.state)" class="o_tv_input o_tv_input_sm" t-on-change="changeTeam">
+                                <option t-if="!c.equipe_id" value="">Choisir…</option>
+                                <t t-foreach="state.data.teams" t-as="t" t-key="t.id"><option t-att-value="t.id" t-att-selected="t.id === c.equipe_id" t-esc="t.name"/></t>
+                            </select>
+                            <b t-else="" t-esc="c.equipe"/>
+                        </div>
+                        <div><label>Jour</label>
+                            <select t-if="c.state === 'planif'" class="o_tv_input o_tv_input_sm" t-on-change="changeDay">
+                                <t t-foreach="dayOptions" t-as="o" t-key="o.v"><option t-att-value="o.v" t-att-selected="o.v === c.date_prevue" t-esc="o.label"/></t>
+                            </select>
+                            <b t-else="" t-esc="c.date_prevue ? shortDate(c.date_prevue) : 'à planifier'"/>
+                        </div>
+                        <div><label>Temps prévu</label>
+                            <div class="d-flex align-items-center gap-1"><input type="number" min="0" step="0.5" class="o_tv_input o_tv_input_sm" style="width:80px" t-att-value="c.duree_prevue or ''" placeholder="à estimer" t-on-change="setPrevu"/><span class="o_tv_meta">h</span></div>
+                        </div>
+                        <div><label>Heures déclarées</label><b t-esc="c.duree_mesuree ? fmtH(c.duree_mesuree) : '—'"/></div>
+                    </div>
+
+                    <div class="o_tv_small_label mt-3 mb-1">CHRONOLOGIE</div>
+                    <TvTimeline steps="c.timeline"/>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <span class="o_tv_small_label">HEURES IMPUTÉES À CE TRAVAIL</span>
+                        <a t-if="c.equipe_id and !state.imp" href="#" class="o_tv_small_link" t-on-click.prevent="openImp">+ Imputer</a>
+                    </div>
+                    <div class="o_tv_implist">
+                        <t t-foreach="c.pointages" t-as="p" t-key="p.id">
+                            <div class="o_tv_improw">
+                                <span t-esc="impDate(p.date)"/>
+                                <span class="flex-grow-1 text-truncate" t-esc="p.equipe"/>
+                                <i t-attf-class="fa {{ p.origine === 'mesure' ? 'fa-play-circle-o' : 'fa-pencil' }} text-muted" t-att-title="p.origine === 'mesure' ? 'Mesurée par Démarrer / Terminé' : 'Imputée à la main'"/>
+                                <b t-esc="fmtH(p.h)"/>
+                                <a href="#" class="text-muted" title="Supprimer" t-on-click.prevent="() => this.delImp(p.id)"><i class="fa fa-times"/></a>
+                            </div>
+                        </t>
+                        <div t-if="!c.pointages.length" class="o_tv_meta">Aucune heure imputée<t t-if="c.duree_mesuree"> (mesure historique : <t t-esc="fmtH(c.duree_mesuree)"/>)</t>.</div>
+                        <div t-if="state.imp" class="o_tv_impform2">
+                            <select class="o_tv_input o_tv_input_sm" t-on-change="(ev) => this.onImp('equipe_id', ev)">
+                                <t t-foreach="state.data.teams" t-as="t" t-key="t.id"><option t-att-value="t.id" t-att-selected="isImpTeam(t.id)" t-esc="t.name"/></t>
+                            </select>
+                            <input type="date" class="o_tv_input o_tv_input_sm" t-att-value="state.imp.date" t-on-change="(ev) => this.onImp('date', ev)"/>
+                            <input type="number" min="0" step="0.25" class="o_tv_input o_tv_input_sm" placeholder="h" t-att-value="state.imp.h" t-on-input="(ev) => this.onImp('h', ev)"/>
+                            <button class="o_tv_btn o_tv_btn_primary py-1" t-on-click="addImp">OK</button>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <span class="o_tv_small_label">FIL DE L'ÉQUIPE (APP TERRAIN)</span>
+                        <a href="#" class="o_tv_small_link" t-on-click.prevent="openTerrain">Ouvrir dans l'app terrain →</a>
+                    </div>
+                    <div class="o_tv_minichat">
+                        <t t-foreach="thread" t-as="m" t-key="m.id">
+                            <div t-if="m.kind === 'sys'" class="o_tv_sys"><span t-esc="m.text"/></div>
+                            <div t-else="" t-attf-class="o_tv_msg {{ m.out ? 'out' : 'in' }}">
+                                <div class="o_tv_bubble">
+                                    <div class="o_tv_author" t-esc="m.out ? 'Vous' : m.author + (m.role ? ' · ' + m.role : '')"/>
+                                    <div t-if="m.images.length" class="o_tv_meta"><i class="fa fa-camera"/> Photo<t t-if="m.tag"> <t t-esc="m.tag.toLowerCase()"/></t></div>
+                                    <div t-if="m.text" class="o_tv_text" t-esc="m.text"/>
+                                </div>
+                            </div>
+                        </t>
+                        <div t-if="!thread.length" class="o_tv_meta text-center">Pas encore de message.</div>
+                    </div>
+                    <div t-if="c.nb_presents" class="o_tv_hint mt-2">Présents : <t t-esc="c.presents"/> · <t t-esc="fmtH(c.duree_horloge)"/> × <t t-esc="c.nb_presents"/> = <b t-esc="fmtH(c.duree_mesuree)"/><t t-if="c.avancement"> · circuit fait à <b><t t-esc="c.avancement"/> %</b></t></div>
+                    <div t-if="c.state === 'annulee'" class="o_tv_hint o_tv_hint_warn mt-2"><b t-esc="c.st_label"/> · <t t-esc="c.motif"/></div>
+                    <t t-if="c.is_sup and ['planif', 'cours', 'valider'].includes(c.state)">
+                        <button t-if="!state.cancel" class="o_tv_btn o_tv_btn_light w-100 mt-2" t-on-click="() => this.state.cancel = { motif: '' }"><i class="fa fa-ban"/> Annuler le bon de travail</button>
+                        <div t-else="" class="o_tv_cancelbox">
+                            <label class="o_tv_small_label" for="tv_cancel_motif">POURQUOI ANNULER CE BON ?</label>
+                            <textarea id="tv_cancel_motif" class="o_tv_input" rows="2" placeholder="Ex. doublon, travail fait par une autre équipe, plus nécessaire…" t-model="state.cancel.motif"/>
+                            <div class="d-flex gap-2 mt-2">
+                                <button class="o_tv_btn o_tv_btn_light flex-grow-1" t-on-click="() => this.state.cancel = null">Garder le bon</button>
+                                <button class="o_tv_btn o_tv_btn_primary flex-grow-1" t-att-disabled="!state.cancel.motif.trim()" t-on-click="annulerBon">Annuler le bon</button>
+                            </div>
+                        </div>
+                    </t>
+                    <button t-if="c.can_close" class="o_tv_btn o_tv_btn_success w-100 mt-2" t-on-click="() => this.act('cloturer')"><i class="fa fa-check-circle"/> Valider et clôturer</button>
+                    <button class="btn btn-link px-0 mt-1" t-on-click="openForm"><i class="fa fa-pencil"/> Fiche complète</button>
+                </div>
+            </aside>
+        </div>
+        <!-- fiche de travail directe -->
+        <div t-if="state.fiche" class="o_tv_drop_back" t-on-click.self="closeFiche">
+            <t t-set="f" t-value="state.fiche"/>
+            <div class="o_tv_drop_win">
+                <div class="d-flex align-items-center mb-1">
+                    <h3 class="flex-grow-1 mb-0"><i class="fa fa-plus-circle"/> Nouvelle fiche de travail</h3>
+                    <button class="o_tv_help_close" t-on-click="closeFiche"><i class="fa fa-times"/></button>
+                </div>
+                <div class="o_tv_meta mb-1">Le travail part directement à l'équipe, sans passer par « Demandes à traiter ».</div>
+                <t t-if="f.type !== 'lancer'">
+                <label>TRAVAIL</label>
+                <input class="o_tv_input" placeholder="Ex. Remplacer la serrure du local technique" t-model="f.titre"/>
+                <textarea class="o_tv_input" rows="2" placeholder="Ce qu'il faut faire" t-model="f.description"/>
+                </t>
+                <div class="d-flex gap-2">
+                    <div class="flex-grow-1">
+                        <label>ÉQUIPE</label>
+                        <select class="o_tv_input" t-on-change="onFicheTeam">
+                            <option value="">Choisir…</option>
+                            <t t-foreach="state.data.teams" t-as="t" t-key="t.id"><option t-att-value="t.id" t-att-selected="isFicheTeam(t.id)"><t t-esc="t.name"/> · <t t-esc="t.presence"/></option></t>
+                        </select>
+                    </div>
+                    <div>
+                        <label>TYPE</label>
+                        <select class="o_tv_input" t-on-change="onFicheType">
+                            <option value="demande">Travail</option>
+                            <option value="maintenance">Maintenance</option>
+                            <option value="lancer">Tournée</option>
+                        </select>
+                    </div>
+                </div>
+                <t t-if="f.type === 'lancer'">
+                    <label>TOURNÉE À LANCER</label>
+                    <select class="o_tv_input" t-on-change="(ev) => this.state.fiche.circuit_id = ev.target.value">
+                        <option value="">Choisir…</option>
+                        <t t-foreach="ficheTournees" t-as="c" t-key="c.id"><option t-att-value="c.id" t-att-disabled="c.lance"><t t-esc="c.name"/> · <t t-esc="c.team"/><t t-if="c.lance"> (déjà lancée)</t></option></t>
+                    </select>
+                    <div class="o_tv_meta">Un bon est créé pour la première zone ; quand l'équipe le termine, le bon de la zone suivante arrive, et ainsi de suite.</div>
+                    <label>JOUR DE DÉBUT</label><input type="date" class="o_tv_input" t-model="f.date"/>
+                </t>
+                <t t-else="">
+                <div class="d-flex gap-2">
+                    <div class="flex-grow-1"><label>JOUR (FACULTATIF)</label><input type="date" class="o_tv_input" t-model="f.date"/></div>
+                    <div><label>TEMPS PRÉVU (H)</label><input type="number" min="0" step="0.5" class="o_tv_input" style="max-width:120px" t-model="f.h"/></div>
+                    <label class="o_tv_check align-self-end mb-2 text-nowrap"><input type="checkbox" t-model="f.urgent"/> Urgent</label>
+                </div>
+                <label>LIEU</label>
+                <input class="o_tv_input" placeholder="Adresse ou nom d'un # lieu" t-model="f.adresse"/>
+                <label>CONSIGNE POUR L'ÉQUIPE</label>
+                <textarea class="o_tv_input" rows="2" t-model="f.consigne"/>
+                </t>
+                <div class="d-flex gap-2 mt-2">
+                    <button class="o_tv_btn o_tv_btn_primary flex-grow-1 py-2" t-att-disabled="f.busy" t-on-click="saveFiche"><i class="fa fa-paper-plane"/> Créer et envoyer à l'équipe</button>
+                    <button class="o_tv_btn o_tv_btn_light" t-on-click="closeFiche">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</t>
+
+</templates>

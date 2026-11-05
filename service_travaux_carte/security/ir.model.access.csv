@@ -1,0 +1,12 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_objet_agent,objet agent,model_travaux_objet,service_travaux.group_agent,1,0,0,0
+access_objet_secr,objet secretariat,model_travaux_objet,service_travaux.group_secretariat,1,0,0,0
+access_objet_dir,objet direction,model_travaux_objet,service_travaux.group_direction,1,0,0,0
+access_objet_demandeur,objet demandeur,model_travaux_objet,service_travaux.group_demandeur,1,0,0,0
+access_objet_sup,objet superviseur,model_travaux_objet,service_travaux.group_superviseur,1,1,1,1
+access_import_picc_sup,import picc superviseur,model_travaux_import_picc,service_travaux.group_superviseur,1,1,1,1
+access_import_picc_line_sup,import picc ligne superviseur,model_travaux_import_picc_line,service_travaux.group_superviseur,1,1,1,1
+access_import_geo_sup,import geo superviseur,model_travaux_import_geo,service_travaux.group_superviseur,1,1,1,1
+access_import_geo_couche_sup,import geo couche superviseur,model_travaux_import_geo_couche,service_travaux.group_superviseur,1,1,1,1
+access_import_geo_champ_sup,import geo champ superviseur,model_travaux_import_geo_champ,service_travaux.group_superviseur,1,1,1,1
+access_import_geo_classe_sup,import geo classe superviseur,model_travaux_import_geo_classe,service_travaux.group_superviseur,1,1,1,1

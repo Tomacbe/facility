@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<odoo>
+    <record id="view_ia_config_form" model="ir.ui.view">
+        <field name="name">travaux.ia.config.form</field>
+        <field name="model">travaux.ia.config</field>
+        <field name="arch" type="xml">
+            <form>
+                <p>L'assistant IA lit les mails, PDF et photos déposés dans « Demandes à traiter » et remplit la fiche.
+                   Il utilise le service en ligne Claude (Anthropic) : <b>le contenu des documents déposés lui est envoyé</b>.
+                   La clé d'accès se crée sur console.anthropic.com ; l'usage est facturé par Anthropic.</p>
+                <group>
+                    <field name="has_key" invisible="1"/>
+                    <div colspan="2" class="alert alert-success py-2" role="status" invisible="not has_key">
+                        Une clé est enregistrée. Laissez le champ vide pour la garder.</div>
+                    <field name="api_key" password="True" placeholder="sk-ant-…"/>
+                    <field name="model"/>
+                </group>
+                <footer>
+                    <button name="action_test" type="object" string="Enregistrer et tester" class="btn-primary"/>
+                    <button name="action_save" type="object" string="Enregistrer" class="btn-secondary"/>
+                    <button name="action_clear" type="object" string="Retirer la clé" class="btn-link" confirm="Retirer la clé ? L'assistant IA sera désactivé." invisible="not has_key"/>
+                    <button special="cancel" string="Fermer" class="btn-link"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <record id="action_ia_config" model="ir.actions.act_window">
+        <field name="name">Assistant IA</field>
+        <field name="res_model">travaux.ia.config</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

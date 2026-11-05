@@ -1,0 +1,171 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<odoo>
+    <record id="view_lieu_tree" model="ir.ui.view">
+        <field name="name">travaux.lieu.tree</field>
+        <field name="model">travaux.lieu</field>
+        <field name="arch" type="xml">
+            <list string="# Lieux" editable="bottom" decoration-warning="state == 'propose'">
+                <field name="display_name" string="#" readonly="1" optional="hide"/>
+                <field name="name" placeholder="Ex. ÉcoleDuCentre, Banc"/>
+                <field name="kind"/>
+                <field name="adresse" placeholder="Rue, numéro" readonly="kind == 'objet'"/>
+                <field name="note" optional="show"/>
+                <field name="propose_par_id" optional="show"/>
+                <field name="state" widget="badge" decoration-warning="state == 'propose'" decoration-success="state == 'valide'" readonly="1"/>
+                <field name="nb_demandes"/>
+                <button name="action_figer" type="object" string="Figer" icon="fa-check" class="btn-link" invisible="state == 'valide'"/>
+                <button name="action_voir_travaux" type="object" string="Voir les travaux" icon="fa-list" class="btn-link"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_lieu_form" model="ir.ui.view">
+        <field name="name">travaux.lieu.form</field>
+        <field name="model">travaux.lieu</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_figer" type="object" string="Figer ce #" class="btn-primary" invisible="state == 'valide'"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_voir_travaux" type="object" class="oe_stat_button" icon="fa-wrench">
+                            <field name="nb_demandes" widget="statinfo" string="Travaux"/>
+                        </button>
+                    </div>
+                    <div class="oe_title"><label for="name"/><h1><field name="name" placeholder="Ex. MaisonCommunale"/></h1></div>
+                    <group>
+                        <field name="kind" widget="radio" options="{'horizontal': true}"/>
+                        <field name="adresse" placeholder="Rue, numéro" invisible="kind == 'objet'"/>
+                        <field name="note"/>
+                        <field name="propose_par_id"/>
+                        <field name="latitude" groups="base.group_no_one"/>
+                        <field name="longitude" groups="base.group_no_one"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+    <record id="view_lieu_search" model="ir.ui.view">
+        <field name="name">travaux.lieu.search</field>
+        <field name="model">travaux.lieu</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name" filter_domain="['|', ('name', 'ilike', self), ('adresse', 'ilike', self)]"/>
+                <filter name="lieux" string="Lieux" domain="[('kind', '=', 'lieu')]"/>
+                <filter name="objets" string="Objets" domain="[('kind', '=', 'objet')]"/>
+                <separator/>
+                <filter name="a_confirmer" string="Proposés · à confirmer" domain="[('state', '=', 'propose')]"/>
+                <filter name="archived" string="Archivés" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter name="grp_kind" string="Type de #" context="{'group_by': 'kind'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="action_lieux" model="ir.actions.act_window">
+        <field name="name"># Lieux et objets</field>
+        <field name="res_model">travaux.lieu</field>
+        <field name="view_mode">list,form</field>
+        <field name="context">{'search_default_grp_kind': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Donnez un # aux adresses qui reviennent souvent</p>
+            <p>#ÉcoleDuCentre, #MaisonCommunale, #SalleOmnisports… Toute demande encodée à cette adresse
+               reçoit automatiquement le #. Pour réunir deux doublons : cochez-les, puis Action → Grouper.</p>
+        </field>
+    </record>
+
+    <!-- Jeux de données : une ligne par # objet posé sur une demande -->
+    <record id="view_recensement_tree" model="ir.ui.view">
+        <field name="name">travaux.recensement.tree</field>
+        <field name="model">travaux.recensement</field>
+        <field name="arch" type="xml">
+            <list string="Jeux de données" create="0" edit="0" delete="0">
+                <field name="objet_id"/>
+                <field name="lieu_id"/>
+                <field name="adresse"/>
+                <field name="latitude" optional="show"/>
+                <field name="longitude" optional="show"/>
+                <field name="date"/>
+                <field name="titre" optional="show"/>
+                <field name="demande_id" optional="hide"/>
+                <field name="equipe_id" optional="hide"/>
+                <field name="state" optional="hide"/>
+                <field name="heures" widget="float_time" optional="hide" sum="Total"/>
+                <field name="photo" widget="image" options="{'size': [0, 40]}" optional="show"/>
+                <button name="action_ouvrir" type="object" string="Ouvrir" icon="fa-external-link" class="btn-link"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_recensement_search" model="ir.ui.view">
+        <field name="name">travaux.recensement.search</field>
+        <field name="model">travaux.recensement</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="objet_id"/>
+                <field name="lieu_id"/>
+                <field name="adresse"/>
+                <filter name="geo" string="Avec position GPS" domain="[('latitude', '!=', 0)]"/>
+                <filter name="annee" string="12 derniers mois" domain="[('date', '&gt;=', (context_today() - relativedelta(years=1)).strftime('%Y-%m-%d'))]"/>
+                <group>
+                    <filter name="grp_objet" string="# Objet" context="{'group_by': 'objet_id'}"/>
+                    <filter name="grp_lieu" string="# Lieu" context="{'group_by': 'lieu_id'}"/>
+                    <filter name="grp_mois" string="Mois" context="{'group_by': 'date:month'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+    <record id="view_recensement_pivot" model="ir.ui.view">
+        <field name="name">travaux.recensement.pivot</field>
+        <field name="model">travaux.recensement</field>
+        <field name="arch" type="xml">
+            <pivot string="Jeux de données"><field name="objet_id" type="row"/><field name="lieu_id" type="col"/></pivot>
+        </field>
+    </record>
+    <record id="view_recensement_graph" model="ir.ui.view">
+        <field name="name">travaux.recensement.graph</field>
+        <field name="model">travaux.recensement</field>
+        <field name="arch" type="xml">
+            <graph string="Jeux de données" type="bar"><field name="objet_id"/></graph>
+        </field>
+    </record>
+    <record id="action_recensement" model="ir.actions.act_window">
+        <field name="name">Jeux de données</field>
+        <field name="res_model">travaux.recensement</field>
+        <field name="view_mode">list,pivot,graph</field>
+        <field name="context">{'search_default_grp_objet': 1}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Les données se construisent depuis le terrain</p>
+            <p>Chaque demande taguée avec un # objet (#Banc, #Poubelle, #Chaufferie…) ajoute une ligne ici,
+               avec son lieu, sa position et sa photo. Cochez des lignes puis Exporter pour obtenir un fichier Excel.</p>
+        </field>
+    </record>
+
+    <!-- Grouper des doublons -->
+    <record id="view_lieu_fusion_form" model="ir.ui.view">
+        <field name="name">travaux.lieu.fusion.form</field>
+        <field name="model">travaux.lieu.fusion</field>
+        <field name="arch" type="xml">
+            <form>
+                <p>Tous les travaux des # sélectionnés sont réunis sous le # à garder. Les autres # sont supprimés.</p>
+                <group>
+                    <field name="lieu_ids" widget="many2many_tags" options="{'no_create': True}"/>
+                    <field name="cible_id" options="{'no_create': True}"/>
+                </group>
+                <footer>
+                    <button name="action_grouper" type="object" string="Grouper" class="btn-primary"/>
+                    <button special="cancel" string="Annuler" class="btn-secondary"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+    <record id="action_lieu_fusion" model="ir.actions.act_window">
+        <field name="name">Grouper (réunir des doublons)</field>
+        <field name="res_model">travaux.lieu.fusion</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+        <field name="binding_model_id" ref="model_travaux_lieu"/>
+        <field name="binding_view_types">list</field>
+        <field name="group_ids" eval="[(4, ref('group_superviseur'))]"/>
+    </record>
+</odoo>

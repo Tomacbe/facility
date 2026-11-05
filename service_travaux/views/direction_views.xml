@@ -1,0 +1,37 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<odoo>
+    <!-- Charge par équipe (heures mesurées / capacité, 12 derniers mois) -->
+    <!-- Graphes du tableau de bord -->
+    <record id="view_demande_graph_types" model="ir.ui.view">
+        <field name="name">travaux.demande.graph.types</field>
+        <field name="model">travaux.demande</field>
+        <field name="priority">30</field>
+        <field name="arch" type="xml">
+            <graph string="Répartition du temps par type" type="pie">
+                <field name="type_travail"/>
+                <field name="duree_mesuree" type="measure"/>
+            </graph>
+        </field>
+    </record>
+    <record id="view_demande_graph_mois" model="ir.ui.view">
+        <field name="name">travaux.demande.graph.mois</field>
+        <field name="model">travaux.demande</field>
+        <field name="priority">30</field>
+        <field name="arch" type="xml">
+            <graph string="Demandes traitées par mois" type="line">
+                <field name="date_fin" interval="month"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="action_analyse" model="ir.actions.act_window">
+        <field name="name">Analyse</field>
+        <field name="res_model">travaux.demande</field>
+        <field name="view_mode">pivot,graph,list</field>
+        <field name="domain">[('date_fin', '!=', False)]</field>
+        <field name="view_ids" eval="[(5, 0, 0),             (0, 0, {'view_mode': 'pivot', 'view_id': ref('view_demande_pivot')}),             (0, 0, {'view_mode': 'graph', 'view_id': ref('view_demande_graph')}),             (0, 0, {'view_mode': 'list', 'view_id': ref('view_demande_tree')})]"/>
+        <field name="search_view_id" ref="view_demande_search"/>
+    </record>
+
+    <!-- Tableau de bord Direction (module Tableaux de bord) -->
+    </odoo>

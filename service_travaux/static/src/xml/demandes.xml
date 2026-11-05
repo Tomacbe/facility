@@ -1,0 +1,504 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="service_travaux.Demandes" owl="1">
+    <div class="o_action o_tv_page o_tv_demandes" t-on-dragover="onPageDragOver">
+        <div class="o_tv_page_head">
+            <h1>Demandes à traiter</h1>
+            <span class="o_tv_lead"><t t-esc="pending.length"/> en attente · <t t-esc="urgentCount"/> urgente(s)</span>
+            <div class="flex-grow-1"/>
+            <button t-if="isSup and pendingTags" class="o_tv_btn o_tv_btn_light me-2" t-on-click="openLieux"><b>#</b> <t t-esc="pendingTags"/> à confirmer</button>
+            <button class="o_tv_btn o_tv_btn_light me-2" t-on-click="() => this.openDrop()"><i class="fa fa-magic"/> Déposer un mail, un PDF, une photo</button>
+            <button class="o_tv_btn o_tv_btn_primary" t-on-click="newDemande"><i class="fa fa-plus"/> Nouvelle demande</button>
+        </div>
+        <div t-if="state.edit and !state.edit.id" class="o_tv_drop_back" t-on-click.self="cancelEdit">
+            <div class="o_tv_drop_win">
+                <div class="d-flex align-items-center mb-1">
+                    <h3 class="flex-grow-1 mb-0"><i class="fa fa-plus-circle"/> Nouvelle demande</h3>
+                    <button class="o_tv_help_close" t-on-click="cancelEdit"><i class="fa fa-times"/></button>
+                </div>
+                <t t-call="service_travaux.DemandeForm"><t t-set="f" t-value="state.edit"/></t>
+                <div class="o_tv_meta mt-2">Les photos, la position sur la carte et les # s'ajoutent juste après, dans la fiche.</div>
+            </div>
+        </div>
+        <div t-if="state.transfert" class="o_tv_drop_back" t-on-click.self="closeTransfert">
+            <t t-set="tr" t-value="state.transfert"/>
+            <div class="o_tv_drop_win">
+                <div class="d-flex align-items-center mb-1">
+                    <h3 class="flex-grow-1 mb-0"><i class="fa fa-share"/> Transférer une demande hors compétence</h3>
+                    <button class="o_tv_help_close" t-on-click="closeTransfert"><i class="fa fa-times"/></button>
+                </div>
+                <label>À QUI</label>
+                <select class="o_tv_input" t-on-change="onTransfertContact">
+                    <option value="">Choisir un contact de transfert…</option>
+                    <t t-foreach="tr.contacts" t-as="c" t-key="c.id"><option t-att-value="c.id" t-att-selected="isTransfertContact(c.id)"><t t-esc="c.name"/> · <t t-esc="c.email"/></option></t>
+                    <option value="other" t-att-selected="tr.contact_id === 'other'">Autre adresse…</option>
+                </select>
+                <input t-if="tr.contact_id === 'other'" class="o_tv_input" type="email" placeholder="adresse@exemple.be" t-model="tr.email"/>
+                <div t-if="!tr.contacts.length" class="o_tv_meta">Aucun contact de transfert défini. <a t-if="tr.can_config" href="#" t-on-click.prevent="openTransfertConfig">Les définir</a><t t-else="">Un superviseur peut les définir dans Configuration.</t></div>
+                <label>OBJET</label>
+                <input class="o_tv_input" t-model="tr.sujet"/>
+                <label>MESSAGE</label>
+                <textarea class="o_tv_input" rows="8" t-model="tr.message"/>
+                <div class="o_tv_dropfile d-inline-block"><i class="fa fa-file-pdf-o"/> PDF complet de la demande joint au mail · <a t-att-href="tr.pdf_url" target="_blank">Aperçu</a></div>
+                <div t-if="tr.has_contact" class="o_tv_meta mt-1"><i class="fa fa-envelope-o"/> Le contact de la demande est prévenu qu'elle a été transmise à ce service.</div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="o_tv_btn o_tv_btn_primary flex-grow-1 py-2" t-att-disabled="tr.busy or !transfertReady" t-on-click="() => this.sendTransfert(true)">
+                        <t t-if="tr.busy"><i class="fa fa-spinner fa-spin"/> Envoi…</t><t t-else=""><i class="fa fa-paper-plane"/> Envoyer le mail et transférer</t></button>
+                    <button class="o_tv_btn o_tv_btn_light" t-att-disabled="tr.busy" t-on-click="() => this.sendTransfert(false)" title="Marquer comme transférée et garder le PDF, sans envoyer de mail">Transférer sans mail</button>
+                </div>
+            </div>
+        </div>
+        <input type="file" multiple="multiple" accept="image/*" class="d-none" t-ref="addphoto" t-on-change="onPhotoPicked"/>
+        <div t-if="lightPhoto" class="o_tv_light" t-on-click.self="closeLightbox">
+            <button class="o_tv_light_close" title="Fermer (Échap)" t-on-click="closeLightbox"><i class="fa fa-times"/></button>
+            <button t-if="photos.length > 1" class="o_tv_light_nav prev" t-on-click="() => this.lightStep(-1)"><i class="fa fa-chevron-left"/></button>
+            <img class="o_tv_light_img" t-att-src="lightPhoto.url" alt="" t-on-click.self="closeLightbox"/>
+            <button t-if="photos.length > 1" class="o_tv_light_nav next" t-on-click="() => this.lightStep(1)"><i class="fa fa-chevron-right"/></button>
+            <div class="o_tv_light_bar">
+                <span class="o_tv_light_count"><t t-esc="state.lightbox + 1"/> / <t t-esc="photos.length"/></span>
+                <div class="o_tv_light_thumbs">
+                    <t t-foreach="photos" t-as="p" t-key="p.id">
+                        <button t-attf-class="o_tv_thumbbtn {{ p_index === state.lightbox ? 'on' : '' }}" t-on-click="() => this.openLightbox(p_index)">
+                            <img t-att-src="p.thumb" alt=""/><i t-if="p.main" class="fa fa-star o_tv_thumb_star"/>
+                        </button>
+                    </t>
+                </div>
+                <span t-if="lightPhoto.main" class="o_tv_light_main"><i class="fa fa-star"/> Photo principale</span>
+                <span t-elif="lightPhoto.apres" class="o_tv_light_main">Photo « après »</span>
+                <button t-elif="lightPhoto.id" class="o_tv_btn o_tv_btn_primary" t-on-click="() => this.setMainPhoto(lightPhoto)"><i class="fa fa-star-o"/> Définir comme photo principale</button>
+            </div>
+        </div>
+        <input type="file" multiple="multiple" class="d-none" t-ref="dropfile" accept=".eml,.msg,.pdf,.txt,.html,image/*" t-on-change="onDropPicked"/>
+        <!-- fenêtre de dépôt -->
+        <div t-if="state.drop" class="o_tv_drop_back" t-on-click.self="closeDrop" t-on-dragover="onPageDragOver" t-on-drop="onDrop">
+            <t t-set="dp" t-value="state.drop"/>
+            <div class="o_tv_drop_win">
+                <div class="d-flex align-items-center mb-2">
+                    <h3 class="flex-grow-1 mb-0"><i class="fa fa-magic"/> Créer une demande depuis un document</h3>
+                    <button class="o_tv_help_close" t-on-click="closeDrop"><i class="fa fa-times"/></button>
+                </div>
+                <div t-attf-class="o_tv_dropzone {{ dp.over ? 'over' : '' }}" t-on-click="pickDropFiles" t-on-dragleave="onDropLeave">
+                    <i class="fa fa-cloud-upload fa-3x"/>
+                    <div class="o_tv_dropzone_t">Glissez ici un mail, un PDF scanné ou une photo</div>
+                    <div class="o_tv_meta">ou cliquez pour choisir un fichier · .eml, .msg, .pdf, images · plusieurs fichiers = une seule demande</div>
+                </div>
+                <div t-if="dp.files.length" class="o_tv_dropfiles">
+                    <t t-foreach="dp.files" t-as="f" t-key="f_index">
+                        <span class="o_tv_dropfile"><i t-attf-class="fa {{ dropIcon(f) }}"/> <t t-esc="f.name"/> <small t-esc="dropSize(f)"/>
+                            <i class="fa fa-times" t-on-click="() => this.removeDropFile(f_index)"/></span>
+                    </t>
+                </div>
+                <textarea class="o_tv_input mt-2" rows="3" placeholder="…ou collez ici le texte d'un mail ou d'un message" t-model="dp.text"/>
+                <div t-if="!state.ia.ready" class="o_tv_hint o_tv_hint_warn">
+                    <i class="fa fa-info-circle"/> L'assistant IA n'est pas encore activé : le document sera importé tel quel, sans reconnaissance.
+                    <a t-if="state.ia.can_config" href="#" t-on-click.prevent="openIaConfig"><b>Activer l'assistant</b></a>
+                    <t t-else="">Demandez à l'administrateur de l'activer (Configuration → Assistant IA).</t>
+                </div>
+                <div t-else="" class="o_tv_meta mt-1"><i class="fa fa-lock"/> Le document est envoyé au service Claude (Anthropic) pour être lu. La demande créée reste « à vérifier ».</div>
+                <div t-if="dp.error" class="o_tv_hint o_tv_hint_warn" t-esc="dp.error"/>
+                <div t-if="dp.result and dp.result.not_request" class="o_tv_hint o_tv_hint_warn">
+                    <b>Ce document ne ressemble pas à une demande de travaux.</b> <t t-esc="dp.result.reason"/>
+                    <button class="btn btn-link btn-sm" t-on-click="() => this.sendDrop(true)">Créer la demande quand même</button>
+                </div>
+                <div class="d-flex gap-2 mt-3">
+                    <button class="o_tv_btn o_tv_btn_primary flex-grow-1 py-2" t-att-disabled="dp.busy or (!dp.files.length and !dp.text)" t-on-click="() => this.sendDrop()">
+                        <t t-if="dp.busy"><i class="fa fa-spinner fa-spin"/> Lecture du document…</t>
+                        <t t-elif="state.ia.ready"><i class="fa fa-magic"/> Lire et créer la demande</t>
+                        <t t-else="">Importer le document</t>
+                    </button>
+                    <button class="o_tv_btn o_tv_btn_light" t-att-disabled="dp.busy" t-on-click="closeDrop">Annuler</button>
+                </div>
+            </div>
+        </div>
+        <div class="px-4"><TvHelp id="'demandes'" text="help.text" steps="help.steps"/></div>
+        <div t-attf-class="o_tv_3col {{ mClass }}">
+            <!-- file d'attente -->
+            <div class="o_tv_queue">
+                <div class="o_tv_filters mb-2">
+                    <t t-foreach="tabs" t-as="t" t-key="t[0]">
+                        <button t-attf-class="o_tv_chip o_tv_chip_teal {{ state.tab === t[0] ? 'active' : '' }}" t-on-click="() => this.setTab(t[0])">
+                            <t t-esc="t[1]"/> · <t t-esc="t[2]"/>
+                        </button>
+                    </t>
+                </div>
+                <div t-if="!list.length" class="o_tv_empty">Rien à traiter. Bravo !</div>
+                <t t-foreach="list" t-as="r" t-key="r.id">
+                    <t t-set="chip" t-value="stateChip(r)"/>
+                    <div t-attf-class="o_tv_qitem {{ state.selId === r.id ? 'active' : '' }}" t-on-click="() => this.openItem(r.id)">
+                        <div class="o_tv_thumb">
+                            <img t-if="r.has_avant" t-att-src="imgUrl(r.id, 'photo_avant', '128x128')" alt=""/>
+                            <i t-else="" class="fa fa-file-text-o"/>
+                        </div>
+                        <div class="flex-grow-1 overflow-hidden lh-sm">
+                            <div class="o_tv_meta"><t t-esc="r.ref"/> · <t t-esc="chatTime(r.create)"/> · <t t-esc="r.source"/>
+                                <span t-if="r.urgent" class="o_tv_st o_tv_urgent ms-1">URGENT</span><i t-if="r.ia" class="fa fa-magic ms-1" title="Créée depuis un document : à vérifier" style="color:#7C3AED"/></div>
+                            <div class="o_tv_qtitle text-truncate" t-esc="r.titre"/>
+                            <div class="o_tv_meta text-truncate"><span t-if="r.lieu" t-attf-class="o_tv_lieu o_tv_lieu_sm {{ r.lieu_state === 'propose' ? 'o_tv_lieu_prop' : '' }}" t-esc="r.lieu"/><t t-foreach="r.objets or []" t-as="o" t-key="o.id"><span t-attf-class="o_tv_lieu o_tv_obj o_tv_lieu_sm {{ o.state === 'propose' ? 'o_tv_lieu_prop' : '' }}" t-esc="o.name"/></t> <t t-esc="r.adresse"/></div>
+                        </div>
+                        <span class="o_tv_st" t-att-style="chip[1]" t-esc="chip[0]"/>
+                    </div>
+                </t>
+            </div>
+
+            <!-- détail -->
+            <t t-set="r" t-value="current"/>
+            <div class="o_tv_detail" t-if="r">
+                <button t-if="ui.isSmall" class="o_tv_back_link" t-on-click="backToList"><i class="fa fa-chevron-left"/> Toutes les demandes</button>
+                <div class="o_tv_detail_media">
+                    <!-- photo principale (clic = agrandir) et vignettes -->
+                    <div class="o_tv_detail_photo" t-on-click="() => this.openLightbox(state.photoIdx)" t-att-title="photos.length ? 'Cliquer pour agrandir' : ''">
+                        <img t-if="photo" t-att-src="photo.url" alt="Photo de la demande"/>
+                        <div t-else="" class="o_tv_nophoto"><i class="fa fa-file-text-o fa-2x"/><div>Pas de photo</div></div>
+                        <span t-if="photos.length > 1" class="o_tv_photo_count"><i class="fa fa-clone"/> <t t-esc="state.photoIdx + 1"/> / <t t-esc="photos.length"/></span>
+                        <span t-if="photo" class="o_tv_photo_zoom"><i class="fa fa-search-plus"/></span>
+                    </div>
+                    <div class="o_tv_thumbs">
+                        <t t-foreach="photos" t-as="p" t-key="p.id">
+                            <button t-attf-class="o_tv_thumbbtn {{ p_index === state.photoIdx ? 'on' : '' }}" t-on-click="() => this.showPhoto(p_index)" t-att-title="p.main ? 'Photo principale' : p.apres ? 'Photo après' : 'Voir cette photo'">
+                                <img t-att-src="p.thumb" alt=""/>
+                                <i t-if="p.main" class="fa fa-star o_tv_thumb_star"/>
+                                <span t-if="p.apres" class="o_tv_thumb_tag">APRÈS</span>
+                            </button>
+                        </t>
+                        <button class="o_tv_thumbbtn o_tv_thumb_add" title="Ajouter une photo" t-on-click="pickPhoto"><i class="fa fa-plus"/></button>
+                    </div>
+                    <!-- carte : le point se déplace, l'adresse se corrige -->
+                    <div t-attf-class="o_tv_minimap {{ state.pos ? 'editing' : '' }}">
+                        <div t-if="!state.mapFailed" class="o_tv_minimap_map" t-ref="map" t-key="'map' + r.id"/>
+                        <svg t-else="" viewBox="0 0 400 140" preserveAspectRatio="xMidYMid slice" class="o_tv_minimap_map">
+                            <rect width="400" height="140" fill="#E9EEEA"/>
+                            <path d="M-10 95 L410 60" stroke="#fff" stroke-width="18"/>
+                            <path d="M150 -10 L190 150" stroke="#fff" stroke-width="12"/>
+                            <path d="M290 -10 L320 150" stroke="#fff" stroke-width="8"/>
+                            <circle cx="200" cy="72" r="8" fill="#C2410C" stroke="#fff" stroke-width="3"/>
+                        </svg>
+                        <t t-if="!state.pos">
+                            <a class="o_tv_minimap_label" t-att-href="osmUrl(r)" target="_blank"><i class="fa fa-map-marker"/> <t t-esc="r.adresse or 'Lieu non précisé'"/></a>
+                            <button t-if="canMove" class="o_tv_minimap_btn" t-on-click="startMove"><i class="fa fa-arrows"/> <t t-if="r.lat">Déplacer le point</t><t t-else="">Placer le point</t></button>
+                        </t>
+                        <div t-else="" class="o_tv_minimap_hint"><i class="fa fa-hand-o-up"/> Glissez le point bleu ou cliquez sur la carte</div>
+                    </div>
+                </div>
+                <div t-if="state.pos" class="o_tv_posbar">
+                    <label class="m-0">ADRESSE</label>
+                    <input class="o_tv_input mb-0 flex-grow-1" placeholder="Rue, numéro" t-att-value="state.pos.adresse" t-on-input="onPosAdresse" t-on-keydown="onPosKey"/>
+                    <button class="o_tv_btn o_tv_btn_light" t-att-disabled="state.pos.searching" t-on-click="searchAdresse" title="Placer le point sur cette adresse"><i t-attf-class="fa {{ state.pos.searching ? 'fa-spinner fa-spin' : 'fa-search' }}"/> Trouver</button>
+                    <button class="o_tv_btn o_tv_btn_primary" t-att-disabled="state.pos.busy" t-on-click="savePos"><i class="fa fa-check"/> Enregistrer</button>
+                    <button class="o_tv_btn o_tv_btn_light" t-on-click="cancelMove">Annuler</button>
+                    <div t-if="state.pos.note" class="o_tv_meta w-100" t-esc="state.pos.note"/>
+                </div>
+                <div t-if="(r.doublons or []).length and !state.fusion" class="o_tv_dupbar">
+                    <i class="fa fa-clone"/>
+                    <span class="flex-grow-1"><b>Déjà signalé ?</b>
+                        <t t-foreach="r.doublons" t-as="d" t-key="d.id">
+                            <span class="o_tv_dup"><t t-esc="d.ref"/> · <t t-esc="d.titre"/> <small>(<t t-if="d.dist !== false">à <t t-esc="d.dist"/> m, </t><t t-esc="chatTime(d.date)"/>, <t t-esc="d.st_label"/>)</small>
+                                <a href="#" t-on-click.prevent="() => this.askFusion(d)">Fusionner</a></span>
+                        </t>
+                    </span>
+                </div>
+                <div t-if="state.fusion" class="o_tv_dupbar o_tv_dupbar_ask">
+                    <div class="flex-grow-1">
+                        <t t-if="state.fusion.pick">
+                            <b>Fusionner <t t-esc="r.ref"/> avec :</b>
+                            <select class="o_tv_input o_tv_input_sm d-inline-block w-auto ms-1 mb-0" t-on-change="onFusionTarget">
+                                <option value="">Choisir la demande à garder…</option>
+                                <t t-foreach="fusionChoices" t-as="o" t-key="o.id"><option t-att-value="o.id"><t t-esc="o.ref"/> · <t t-esc="o.titre"/></option></t>
+                            </select>
+                        </t>
+                        <b t-else="">Fusionner <t t-esc="r.ref"/> dans <t t-esc="state.fusion.ref"/> « <t t-esc="state.fusion.titre"/> » ?</b>
+                        <div class="o_tv_meta">Il ne reste qu'une demande à traiter. Les photos et le message de <t t-esc="r.ref"/> sont gardés dans son fil, et son contact sera informé de la suite, comme le premier signaleur.</div>
+                        <label t-if="r.demandeur_email" class="o_tv_check m-0 mt-1"><input type="checkbox" t-model="state.fusion.prevenir"/> Prévenir <t t-esc="r.demandeur"/> par mail que son signalement est réuni avec un signalement existant</label>
+                    </div>
+                    <button class="o_tv_btn o_tv_btn_primary" t-att-disabled="state.busy or !state.fusion.id" t-on-click="doFusion">Fusionner</button>
+                    <button class="o_tv_btn o_tv_btn_light" t-on-click="cancelFusion">Annuler</button>
+                </div>
+                <div t-if="r.ia" class="o_tv_iabar">
+                    <i class="fa fa-magic"/>
+                    <span class="flex-grow-1"><b t-if="r.ia_auto">Fiche remplie par l'assistant IA : à vérifier.</b><b t-else="">Document importé : fiche à compléter.</b> <t t-esc="r.ia_note"/></span>
+                    <a href="#" t-on-click.prevent="() => this.openForm(r.id)">Corriger</a>
+                    <a href="#" t-on-click.prevent="markVerified">C'est correct</a>
+                </div>
+                <div class="o_tv_detail_body">
+                    <div class="o_tv_meta d-flex gap-3"><span class="flex-grow-1"><t t-esc="r.ref"/> · reçue <t t-esc="chatTime(r.create)"/> · <t t-esc="r.source"/></span>
+                        <span t-if="r.nb_fusion" class="o_tv_st" style="background:#EEF3FF;color:#1E3A8A" title="Signalements du même problème réunis dans cette demande"><i class="fa fa-clone"/> <t t-esc="r.nb_fusion + 1"/> signalements</span>
+                        <a t-if="!state.edit and ['recue','precision'].includes(r.state)" href="#" class="o_tv_small_link" t-on-click.prevent="pickFusion" title="Ce problème a déjà été signalé : réunir les deux demandes"><i class="fa fa-clone"/> Fusionner</a>
+                        <a t-if="!state.edit" href="#" class="o_tv_small_link" t-on-click.prevent="startEdit"><i class="fa fa-pencil"/> Modifier</a>
+                        <a href="#" class="o_tv_small_link" t-on-click.prevent="() => this.openForm(r.id)"><i class="fa fa-external-link"/> Fiche complète</a></div>
+                    <t t-if="state.edit and state.edit.id === r.id">
+                        <t t-call="service_travaux.DemandeForm"><t t-set="f" t-value="state.edit"/></t>
+                    </t>
+                    <div t-else="" class="o_tv_qqo">
+                        <div class="o_tv_qqo_main">
+                            <!-- QUOI -->
+                            <div class="o_tv_small_label">DEMANDE</div>
+                            <h2 class="o_tv_detail_title" t-esc="r.titre"/>
+                            <p class="o_tv_quote" t-if="r.description" t-att-title="r.description" t-esc="r.description"/>
+                            <p t-else="" class="o_tv_meta mb-1">Rien de précisé sur ce qu'il faut faire. <a href="#" t-on-click.prevent="startEdit">Compléter</a></p>
+                            <!-- OÙ -->
+                            <div class="o_tv_small_label mt-2">LIEU</div>
+                            <div class="o_tv_where"><i class="fa fa-map-marker"/> <b t-esc="r.adresse or 'Adresse non précisée'"/><span t-if="r.precision" class="o_tv_meta"> · <t t-esc="r.precision"/></span></div>
+                    <!-- # lieu : nom connu de l'endroit -->
+                    <div class="o_tv_lieubox">
+                        <t t-if="state.lieuEdit === 'group'">
+                            <div class="o_tv_small_label mb-1">GROUPER <t t-esc="r.lieu"/> AVEC…</div>
+                            <div class="d-flex gap-2">
+                                <select class="o_tv_input flex-grow-1 mb-0" t-on-change="onLieuTarget">
+                                    <option value="">Choisir le # à garder…</option>
+                                    <t t-foreach="otherLieux" t-as="l" t-key="l.id"><option t-att-value="l.id">#<t t-esc="l.name"/><t t-if="l.adresse"> · <t t-esc="l.adresse"/></t></option></t>
+                                </select>
+                                <button class="o_tv_btn o_tv_btn_primary" t-att-disabled="!state.lieuTarget" t-on-click="() => this.lieuAction('grouper', state.lieuTarget)">Grouper</button>
+                                <button class="o_tv_btn o_tv_btn_light" t-on-click="cancelLieu">Annuler</button>
+                            </div>
+                            <div class="o_tv_meta mt-1">Tous les travaux de <t t-esc="r.lieu"/> passent sous le # choisi ; <t t-esc="r.lieu"/> disparaît.</div>
+                        </t>
+                        <t t-elif="state.lieuEdit">
+                            <div class="o_tv_small_label mb-1"><t t-if="state.lieuEdit === 'rename'">RENOMMER <t t-esc="r.lieu"/></t><t t-else=""># DE CET ENDROIT</t></div>
+                            <div class="d-flex gap-2">
+                                <div class="o_tv_hashinput flex-grow-1"><span>#</span>
+                                    <input placeholder="ÉcoleDuCentre, MaisonCommunale…" t-att-value="state.lieuName" t-on-input="onLieuInput" t-on-keydown="onLieuKey" autofocus="autofocus"/>
+                                </div>
+                                <button class="o_tv_btn o_tv_btn_primary" t-att-disabled="!state.lieuName" t-on-click="() => this.saveLieu()">
+                                    <t t-if="state.lieuEdit === 'rename'">Renommer</t><t t-elif="lieuIsNew and isSup">Créer ce #</t><t t-elif="lieuIsNew">Proposer ce #</t><t t-else="">Utiliser</t>
+                                </button>
+                                <button class="o_tv_btn o_tv_btn_light" t-on-click="cancelLieu">Annuler</button>
+                            </div>
+                            <t t-if="state.lieuEdit === 'set'">
+                                <div t-if="state.lieuSimilar" class="o_tv_hint o_tv_hint_warn">
+                                    <b>Ce # existe peut-être déjà.</b> Choisissez-le pour éviter un doublon :
+                                    <div class="o_tv_filters flex-wrap mt-1">
+                                        <t t-foreach="state.lieuSimilar" t-as="l" t-key="l.id">
+                                            <button class="o_tv_lieu o_tv_lieu_btn" t-on-click="() => this.applyLieu(l.name)">#<t t-esc="l.name"/><small t-if="l.dist !== false"> · <t t-esc="l.dist"/> m</small></button>
+                                        </t>
+                                        <button class="btn btn-link btn-sm" t-on-click="() => this.saveLieu(true)">Non, créer #<t t-esc="state.lieuName"/> quand même</button>
+                                    </div>
+                                </div>
+                                <div t-elif="lieuSuggest.length" class="o_tv_filters flex-wrap mt-2 align-items-center">
+                                    <span class="o_tv_meta"><t t-if="state.lieuName">Existants :</t><t t-else="">Aux alentours :</t></span>
+                                    <t t-foreach="lieuSuggest" t-as="l" t-key="l.id">
+                                        <button class="o_tv_lieu o_tv_lieu_btn" t-on-click="() => this.applyLieu(l.name)">#<t t-esc="l.name"/><small t-if="l.distLabel"> · <t t-esc="l.distLabel"/></small></button>
+                                    </t>
+                                </div>
+                                <div class="o_tv_meta mt-1">Écrivez sans espace : l'application met en forme et vérifie les doublons.<t t-if="!isSup"> Un nouveau # doit être figé par un superviseur.</t></div>
+                            </t>
+                        </t>
+                        <t t-elif="r.lieu">
+                            <span t-attf-class="o_tv_lieu {{ r.lieu_state === 'propose' ? 'o_tv_lieu_prop' : '' }}" t-esc="r.lieu"/>
+                            <span t-if="r.lieu_state === 'propose'" class="o_tv_meta ms-1">proposé<t t-if="r.lieu_by"> par <t t-esc="r.lieu_by"/></t> · à confirmer</span>
+                            <span class="o_tv_lieuacts">
+                                <button t-if="isSup and r.lieu_state === 'propose'" class="o_tv_btn o_tv_btn_primary o_tv_btn_xs" t-on-click="() => this.lieuAction('figer')"><i class="fa fa-check"/> Figer</button>
+                                <button class="btn btn-link btn-sm" t-on-click="() => this.editLieu('set')">Changer</button>
+                                <button class="btn btn-link btn-sm" t-on-click="clearLieu">Retirer</button>
+                                <t t-if="isSup">
+                                    <button class="btn btn-link btn-sm" t-on-click="() => this.editLieu('rename')">Renommer</button>
+                                    <button class="btn btn-link btn-sm" t-on-click="() => this.editLieu('group')">Grouper</button>
+                                    <button class="btn btn-link btn-sm text-danger" t-on-click="() => this.lieuAction('supprimer')">Supprimer</button>
+                                </t>
+                            </span>
+                        </t>
+                        <t t-elif="r.adresse or r.lat">
+                            <div class="o_tv_filters flex-wrap align-items-center">
+                                <t t-if="lieuSuggest.length">
+                                    <span class="o_tv_meta"># aux alentours :</span>
+                                    <t t-foreach="lieuSuggest" t-as="l" t-key="l.id">
+                                        <button class="o_tv_lieu o_tv_lieu_btn" t-on-click="() => this.applyLieu(l.name)">#<t t-esc="l.name"/><small t-if="l.distLabel"> · <t t-esc="l.distLabel"/></small></button>
+                                    </t>
+                                </t>
+                                <span t-elif="r.repeat > 1" class="o_tv_meta"><i class="fa fa-repeat"/> Cette adresse revient <b><t t-esc="r.repeat"/> fois</b> :</span>
+                                <button class="o_tv_btn o_tv_btn_outline o_tv_btn_xs" t-on-click="() => this.editLieu('set')"><b>#</b> <t t-if="lieuSuggest.length">Autre #</t><t t-else="">Donner un # à cet endroit</t></button>
+                            </div>
+                        </t>
+                    </div>
+                    <!-- # objets : ce qui est concerné (plusieurs possibles) -->
+                    <div class="o_tv_lieubox o_tv_objbox">
+                        <div class="o_tv_filters flex-wrap align-items-center">
+                            <span class="o_tv_meta">Quoi :</span>
+                            <t t-foreach="r.objets or []" t-as="o" t-key="o.id">
+                                <span t-attf-class="o_tv_lieu o_tv_obj {{ o.state === 'propose' ? 'o_tv_lieu_prop' : '' }}">
+                                    <t t-esc="o.name"/>
+                                    <i t-if="isSup and o.state === 'propose'" class="fa fa-check" title="Figer ce #" t-on-click="() => this.figerObj(o.id)"/>
+                                    <i class="fa fa-times" title="Retirer de cette demande" t-on-click="() => this.removeObj(o.id)"/>
+                                </span>
+                            </t>
+                            <button t-if="!state.objEdit" class="o_tv_btn o_tv_btn_outline o_tv_btn_xs" t-on-click="editObj"><b>#</b> <t t-if="(r.objets or []).length">Ajouter</t><t t-else="">Ce qui est concerné (banc, poubelle, chaufferie…)</t></button>
+                        </div>
+                        <t t-if="state.objEdit">
+                            <div class="d-flex gap-2 mt-2">
+                                <div class="o_tv_hashinput flex-grow-1"><span>#</span>
+                                    <input placeholder="Banc, Poubelle, Chaufferie…" t-att-value="state.objName" t-on-input="onObjInput" t-on-keydown="onObjKey" autofocus="autofocus"/>
+                                </div>
+                                <button class="o_tv_btn o_tv_btn_primary" t-att-disabled="!state.objName" t-on-click="() => this.addObj(state.objName)">
+                                    <t t-if="objIsNew and isSup">Créer ce #</t><t t-elif="objIsNew">Proposer ce #</t><t t-else="">Ajouter</t>
+                                </button>
+                                <button class="o_tv_btn o_tv_btn_light" t-on-click="cancelObj">Fermer</button>
+                            </div>
+                            <div t-if="state.objSimilar" class="o_tv_hint o_tv_hint_warn">
+                                <b>Ce # existe peut-être déjà.</b> Choisissez-le pour éviter un doublon :
+                                <div class="o_tv_filters flex-wrap mt-1">
+                                    <t t-foreach="state.objSimilar" t-as="l" t-key="l.id">
+                                        <button class="o_tv_lieu o_tv_obj o_tv_lieu_btn" t-on-click="() => this.addObj(l.name)">#<t t-esc="l.name"/></button>
+                                    </t>
+                                    <button class="btn btn-link btn-sm" t-on-click="() => this.addObj(state.objName, true)">Non, créer #<t t-esc="state.objName"/> quand même</button>
+                                </div>
+                            </div>
+                            <div t-elif="objSuggest.length" class="o_tv_filters flex-wrap mt-2 align-items-center">
+                                <t t-foreach="objSuggest" t-as="l" t-key="l.id">
+                                    <button class="o_tv_lieu o_tv_obj o_tv_lieu_btn" t-on-click="() => this.addObj(l.name)">#<t t-esc="l.name"/></button>
+                                </t>
+                            </div>
+                        </t>
+                    </div>
+                        </div>
+                        <!-- QUI -->
+                        <div class="o_tv_qqo_who">
+                            <div class="o_tv_small_label">CONTACT</div>
+                            <t t-if="r.demandeur or r.demandeur_tel or r.demandeur_email">
+                                <div class="o_tv_who_name"><i class="fa fa-user-o"/> <t t-esc="r.demandeur or '—'"/></div>
+                                <a t-if="r.demandeur_tel" class="o_tv_who_line" t-att-href="'tel:' + r.demandeur_tel"><i class="fa fa-phone"/> <t t-esc="r.demandeur_tel"/></a>
+                                <a t-if="r.demandeur_email" class="o_tv_who_line text-truncate" t-att-href="'mailto:' + r.demandeur_email" t-att-title="r.demandeur_email"><i class="fa fa-envelope-o"/> <t t-esc="r.demandeur_email"/></a>
+                                <div t-if="!r.demandeur_tel and !r.demandeur_email" class="o_tv_meta">Aucun moyen de le recontacter. <a href="#" t-on-click.prevent="startEdit">Ajouter</a></div>
+                            </t>
+                            <div t-else="" class="o_tv_meta">Pas de contact (demande interne). <a href="#" t-on-click.prevent="startEdit">Ajouter</a></div>
+                            <div t-if="(r.contacts or []).length" class="o_tv_others" t-att-title="otherContactsTitle(r)">
+                                <i class="fa fa-users"/> + <t t-esc="r.contacts.length"/> autre(s) signaleur(s) :
+                                <t t-foreach="r.contacts" t-as="p" t-key="p.id"><span class="d-block text-truncate"><t t-esc="p.name"/></span></t>
+                            </div>
+                            <button t-if="r.demandeur_email and !state.reply" class="o_tv_btn o_tv_btn_outline o_tv_btn_xs mt-1" t-on-click="startReply"><i class="fa fa-reply"/> Répondre</button>
+                            <div t-if="r.categorie" class="o_tv_small_label mt-2">CATÉGORIE</div>
+                            <div t-if="r.categorie" t-esc="r.categorie"/>
+                        </div>
+                    </div>
+                </div>
+                <div t-if="state.reply" class="o_tv_replybar">
+                    <div class="o_tv_small_label mb-1">RÉPONSE À <t t-esc="r.demandeur"/><t t-if="(r.contacts or []).length"> ET AUX AUTRES SIGNALEURS</t></div>
+                    <textarea class="o_tv_input" rows="3" placeholder="Ex. Bonjour, merci pour votre signalement. Pouvez-vous préciser le numéro de la maison ?" t-model="state.reply.message"/>
+                    <div class="d-flex gap-2 align-items-center">
+                        <button class="o_tv_btn o_tv_btn_primary" t-att-disabled="state.reply.busy or !state.reply.message" t-on-click="sendReply"><i class="fa fa-paper-plane"/> Envoyer par mail</button>
+                        <button class="o_tv_btn o_tv_btn_light" t-on-click="cancelReply">Annuler</button>
+                        <span class="o_tv_meta">La réponse est gardée dans le fil de la demande.</span>
+                    </div>
+                </div>
+                <div class="o_tv_detail_foot">
+                    <TvTimeline steps="r.timeline" compact="true"/>
+                </div>
+            </div>
+
+            <!-- attribution -->
+            <div class="o_tv_assign" t-if="r">
+                <h3><t t-if="r.pret and droits.peut_envoyer">Planifier et envoyer</t><t t-else="">Attribuer la demande</t></h3>
+                <t t-set="info" t-value="doneInfo"/>
+                <div t-if="info and info.again" class="o_tv_hint o_tv_hint_warn mb-2"><i class="fa fa-clock-o"/> <b t-esc="info.title"/> : en attente de la réponse du demandeur.</div>
+                <t t-elif="info">
+                    <div class="o_tv_done">
+                        <i class="fa fa-check-circle fa-2x"/>
+                        <div class="o_tv_done_title" t-esc="info.title"/>
+                        <p t-esc="info.text"/>
+                        <button t-if="r.state !== 'transferee'" class="o_tv_btn o_tv_btn_light w-100 mb-2" t-on-click="openTerrain"><i class="fa fa-comments-o"/> Voir la discussion</button>
+                        <button t-if="pending.length" class="o_tv_btn o_tv_btn_primary w-100" t-on-click="next">Demande suivante <i class="fa fa-arrow-right"/></button>
+                    </div>
+                </t>
+                <t t-if="!info or info.again">
+                    <div t-if="r.suggest" class="o_tv_hint">Catégorie « <t t-esc="r.categorie"/> » : équipe habituelle <b t-esc="r.suggest"/> (<t t-esc="r.suggest_presence"/>).</div>
+                    <div t-if="r.entretien" class="o_tv_hint"><i class="fa fa-calendar-check-o"/> <t t-esc="r.entretien"/></div>
+                    <div t-if="r.hors" class="o_tv_hint o_tv_hint_warn">Hors compétence du service : à transférer<t t-if="r.service"> à <b t-esc="r.service"/></t>.</div>
+                    <t t-if="droits.peut_attribuer">
+                    <label>ÉQUIPE</label>
+                    <select class="o_tv_input" t-on-change="onTeam">
+                        <option value="">Choisir une équipe…</option>
+                        <t t-foreach="state.data.teams" t-as="t" t-key="t.id">
+                            <option t-att-value="t.id" t-att-selected="isTeamSel(t.id)" t-esc="teamLabel(t)"/>
+                        </t>
+                    </select>
+                    <div class="d-flex gap-2">
+                        <div class="flex-grow-1">
+                            <label>QUAND</label>
+                            <select class="o_tv_input" t-on-change="onDate">
+                                <t t-foreach="dayOptions" t-as="o" t-key="o.v"><option t-att-value="o.v" t-att-selected="o.v === state.form.date" t-esc="o.label"/></t>
+                            </select>
+                        </div>
+                        <div>
+                            <label>PRIORITÉ</label>
+                            <div class="o_tv_seg">
+                                <button t-attf-class="{{ state.form.priorite === '0' ? 'on' : '' }}" t-on-click="() => this.setPrio('0')">Normale</button>
+                                <button t-attf-class="{{ state.form.priorite === '1' ? 'on urgent' : '' }}" t-on-click="() => this.setPrio('1')">Urgente</button>
+                            </div>
+                        </div>
+                    </div>
+                    <label>TEMPS PRÉVU POUR L'ÉQUIPE</label>
+                    <div class="d-flex align-items-center gap-2">
+                        <input type="number" min="0" step="0.5" class="o_tv_input" style="max-width:110px" t-att-value="state.form.h" t-on-input="onH"/>
+                        <span class="o_tv_meta">heures · imputées à la charge de l'équipe<t t-if="teamLoad"> (semaine : <t t-esc="teamLoad"/>)</t></span>
+                    </div>
+                    <label>CONSIGNE POUR L'ÉQUIPE</label>
+                    <textarea class="o_tv_input" rows="2" placeholder="Ex. sécuriser avant midi, prendre l'enrobé à froid" t-model="state.form.consigne"/>
+                    </t>
+                    <t t-if="!droits.peut_attribuer">
+                        <div class="o_tv_hint mt-2"><i class="fa fa-info-circle"/> Complétez la demande et répondez au contact si besoin : c'est le superviseur qui choisit l'équipe et planifie.</div>
+                    </t>
+                    <t t-elif="r.pret">
+                        <div class="o_tv_hint o_tv_hint_pret mt-2"><i class="fa fa-pause-circle-o"/> Attribuée à <b t-esc="r.equipe"/>, <b>pas encore envoyée</b> :
+                            <t t-if="droits.peut_envoyer">l'équipe ne la voit pas.</t><t t-else="">le superviseur la planifie et l'envoie à l'équipe.</t>
+                            <a href="#" t-on-click.prevent="() => this.run('desattribuer')">Retirer</a></div>
+                        <button t-if="droits.peut_envoyer" class="o_tv_btn o_tv_btn_primary w-100 mt-2 py-2" t-att-disabled="state.busy" t-on-click="() => this.run('attribuer')"><i class="fa fa-paper-plane"/> Envoyer à l'équipe</button>
+                        <button class="o_tv_btn o_tv_btn_light w-100 mt-2" t-att-disabled="state.busy" t-on-click="() => this.run('preparer')">Enregistrer les changements<t t-if="droits.peut_envoyer"> sans envoyer</t></button>
+                    </t>
+                    <t t-elif="droits.peut_envoyer">
+                        <button class="o_tv_btn o_tv_btn_primary w-100 mt-2 py-2" t-att-disabled="state.busy" t-on-click="() => this.run('attribuer')"><i class="fa fa-paper-plane"/> Attribuer et envoyer à l'équipe</button>
+                        <button class="o_tv_btn o_tv_btn_light w-100 mt-2" t-att-disabled="state.busy" t-on-click="() => this.run('preparer')" title="Choisir l'équipe maintenant, planifier et envoyer plus tard">Attribuer sans envoyer</button>
+                    </t>
+                    <t t-else="">
+                        <button class="o_tv_btn o_tv_btn_primary w-100 mt-2 py-2" t-att-disabled="state.busy" t-on-click="() => this.run('preparer')"><i class="fa fa-check"/> Attribuer à l'équipe</button>
+                        <div class="o_tv_meta mt-1">Le superviseur de l'équipe la retrouve dans « Suivi et planning », la planifie et l'envoie.</div>
+                    </t>
+                    <div class="d-flex gap-2 mt-2 flex-wrap">
+                        <button class="o_tv_btn o_tv_btn_light flex-grow-1" t-att-disabled="state.busy" t-on-click="openTransfert">Hors compétence : transférer</button>
+                        <button t-if="r.state === 'recue'" class="o_tv_btn o_tv_btn_light flex-grow-1" t-att-disabled="state.busy" t-on-click="() => this.run('precision')">Demander une précision</button>
+                        <button t-if="!state.refus" class="o_tv_btn o_tv_btn_light flex-grow-1" t-att-disabled="state.busy" t-on-click="startRefus">Refuser la demande</button>
+                    </div>
+                    <div t-if="state.refus" class="o_tv_cancelbox">
+                        <label class="o_tv_small_label" for="tv_refus_motif">MOTIF DU REFUS (ENVOYÉ AU DEMANDEUR)</label>
+                        <textarea id="tv_refus_motif" class="o_tv_input" rows="3" placeholder="Ex. ce n'est pas du domaine communal ; travaux déjà prévus au printemps…" t-model="state.refus.motif"/>
+                        <div class="d-flex gap-2 mt-2">
+                            <button class="o_tv_btn o_tv_btn_light flex-grow-1" t-on-click="() => this.state.refus = null">Annuler</button>
+                            <button class="o_tv_btn o_tv_btn_primary flex-grow-1" t-att-disabled="state.busy or !state.refus.motif.trim()" t-on-click="confirmRefus">Refuser et prévenir</button>
+                        </div>
+                    </div>
+                </t>
+            </div>
+        </div>
+    </div>
+</t>
+
+<!-- Formulaire commun : corriger une demande ou en créer une (qui, quoi, où) -->
+<t t-name="service_travaux.DemandeForm" owl="1">
+    <div class="o_tv_dform">
+        <div class="o_tv_dform_col">
+            <div class="o_tv_small_label">DEMANDE</div>
+            <input class="o_tv_input" placeholder="De quoi s'agit-il ? ex. Nid de poule dangereux" t-model="f.titre"/>
+            <textarea class="o_tv_input" rows="2" placeholder="Ce qu'il faut faire, ce que la personne a constaté" t-model="f.description"/>
+            <div class="d-flex gap-2">
+                <select class="o_tv_input flex-grow-1" t-on-change="onEditCat">
+                    <option value="">Catégorie…</option>
+                    <t t-foreach="state.data.categories or []" t-as="c" t-key="c.id"><option t-att-value="c.id" t-att-selected="isEditCat(c.id)" t-esc="c.name"/></t>
+                </select>
+                <label class="o_tv_check m-0 align-self-center text-nowrap"><input type="checkbox" t-model="f.urgent"/> Urgent</label>
+            </div>
+            <div class="o_tv_small_label mt-1">LIEU</div>
+            <input class="o_tv_input" placeholder="Adresse : rue, numéro (ou le nom d'un # lieu)" t-model="f.adresse"/>
+            <input class="o_tv_input" placeholder="Précision : derrière le préau, côté parking…" t-model="f.precision"/>
+        </div>
+        <div class="o_tv_dform_col">
+            <div class="o_tv_small_label">CONTACT <span class="fw-normal">(facultatif)</span></div>
+            <input class="o_tv_input" placeholder="Nom" t-model="f.demandeur"/>
+            <input class="o_tv_input" type="tel" placeholder="Téléphone" t-model="f.demandeur_tel"/>
+            <input class="o_tv_input" type="email" placeholder="E-mail" t-model="f.demandeur_email"/>
+            <div class="o_tv_meta">Sert à prévenir la personne quand c'est pris en charge, puis résolu.</div>
+        </div>
+        <div class="o_tv_dform_btns">
+            <button class="o_tv_btn o_tv_btn_primary" t-att-disabled="f.busy or !f.titre" t-on-click="saveEdit"><i class="fa fa-check"/> <t t-if="f.id">Enregistrer</t><t t-else="">Créer la demande</t></button>
+            <button class="o_tv_btn o_tv_btn_light" t-on-click="cancelEdit">Annuler</button>
+        </div>
+    </div>
+</t>
+
+</templates>

@@ -1,0 +1,113 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<odoo>
+    <record id="view_equipe_form" model="ir.ui.view">
+        <field name="name">travaux.equipe.form</field>
+        <field name="model">travaux.equipe</field>
+        <field name="arch" type="xml">
+            <form string="Équipe">
+                <header>
+                    <button name="action_preter_suggestion" type="object" string="Prêter le renfort suggéré" class="btn-primary" invisible="not suggestion_id"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_voir_demandes" type="object" class="oe_stat_button" icon="fa-tasks">
+                            <field name="nb_ouvertes" widget="statinfo" string="Tâches ouvertes"/>
+                        </button>
+                    </div>
+                    <div class="alert alert-warning" role="alert" invisible="not sous_effectif">
+                        <field name="alerte" nolabel="1"/>
+                    </div>
+                    <div class="oe_title">
+                        <label for="name"/>
+                        <h1><field name="name" placeholder="ex. Voirie"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="department_id" options="{'no_create': True}"/>
+                            <field name="superviseur_id"/>
+                            <field name="brigadier_id"/>
+                            <field name="responsable_ids" widget="many2many_tags" readonly="1"/>
+                            <field name="chef_id"/>
+                            <field name="effectif_min"/>
+                            <field name="capacite_hebdo"/>
+                        </group>
+                        <group>
+                            <field name="presence_label"/>
+                            <field name="suggestion_id" invisible="not suggestion_id"/>
+                            <field name="sous_effectif" invisible="1"/>
+                            <field name="color" widget="color_picker"/>
+                            <field name="is_pool"/>
+                        </group>
+                    </group>
+                    <notebook>
+                        <page string="Membres" name="membres">
+                            <field name="member_ids" widget="many2many" context="{'default_equipe_id': id}">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="fonction"/>
+                                    <field name="statut_jour" widget="badge" decoration-success="statut_jour == 'present'" decoration-info="statut_jour == 'formation'"/>
+                                    <field name="equipe_pret_id"/>
+                                </list>
+                            </field>
+                        </page>
+                        <page string="Agents aujourd'hui" name="jour">
+                            <field name="jour_ids" readonly="1">
+                                <list>
+                                    <field name="name"/>
+                                    <field name="fonction"/>
+                                    <field name="statut_jour"/>
+                                    <field name="info_pret"/>
+                                </list>
+                            </field>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_equipe_tree" model="ir.ui.view">
+        <field name="name">travaux.equipe.tree</field>
+        <field name="model">travaux.equipe</field>
+        <field name="arch" type="xml">
+            <list string="Équipes" decoration-warning="sous_effectif">
+                <field name="sequence" widget="handle"/>
+                <field name="name"/>
+                <field name="department_id"/>
+                <field name="superviseur_id" widget="many2one_avatar_user"/>
+                <field name="presence_label"/>
+                <field name="effectif_min"/>
+                <field name="capacite_hebdo"/>
+                <field name="nb_ouvertes"/>
+                <field name="sous_effectif" invisible="1"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- Organiser les équipes : une carte par équipe, alerte et renfort suggéré -->
+    <record id="view_equipe_search" model="ir.ui.view">
+        <field name="name">travaux.equipe.search</field>
+        <field name="model">travaux.equipe</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="superviseur_id"/>
+                <filter name="mes_equipes" string="Mes équipes" domain="['|', ('superviseur_id', '=', uid), ('is_pool', '=', True)]"/>
+                <group>
+                    <filter name="grp_sup" string="Superviseur" context="{'group_by': 'superviseur_id'}"/>
+                    <filter name="grp_dept" string="Service" context="{'group_by': 'department_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_equipes" model="ir.actions.act_window">
+        <field name="name">Organiser les équipes</field>
+        <field name="res_model">travaux.equipe</field>
+        <field name="view_mode">list,form</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Créez vos équipes (Voirie, Jardiniers, Propreté publique…)</p>
+            <p>Chaque équipe a un superviseur, un effectif minimum et une capacité hebdomadaire.</p>
+        </field>
+    </record>
+</odoo>

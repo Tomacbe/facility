@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Contacts de transfert -->
+    <record id="view_transfert_contact_list" model="ir.ui.view">
+        <field name="name">travaux.transfert.contact.list</field>
+        <field name="model">travaux.transfert.contact</field>
+        <field name="arch" type="xml">
+            <list string="Contacts de transfert" editable="bottom">
+                <field name="name" placeholder="Ex. Service Urbanisme"/>
+                <field name="email" placeholder="urbanisme@commune.be"/>
+                <field name="note" placeholder="Ex. haies privées, litiges de voisinage"/>
+            </list>
+        </field>
+    </record>
+    <record id="action_transfert_contacts" model="ir.actions.act_window">
+        <field name="name">Contacts de transfert</field>
+        <field name="res_model">travaux.transfert.contact</field>
+        <field name="view_mode">list</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">À qui transférer les demandes hors compétence ?</p>
+            <p>Service Urbanisme, Police locale, gestionnaire du réseau, Région… avec leur adresse e-mail.
+               Ils sont proposés quand vous transférez une demande ; le PDF de la demande est joint au mail.</p>
+        </field>
+    </record>
+
+    <!-- PDF complet d'une demande -->
+<record id="paperformat_demande" model="report.paperformat">
+        <field name="name">FACILITY : demande</field>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">10</field>
+        <field name="margin_bottom">12</field>
+        <field name="margin_left">10</field>
+        <field name="margin_right">10</field>
+        <field name="header_spacing">0</field>
+        <field name="dpi">96</field>
+    </record>
+    <!-- Charte graphique de l'application : bandeau bleu pétrole, blocs Demande / Lieu / Contact, # en pastilles -->
+    <template id="report_demande">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.basic_layout">
+                    <t t-set="company" t-value="o.env.company"/>
+                    <t t-set="teal" t-value="'#276577'"/>
+                    <div class="page" style="font-family: Roboto, 'Helvetica Neue', Arial, sans-serif; font-size: 13px; color: #1A1A1A;">
+                        <!-- bandeau : commune à gauche, FACILITY à droite -->
+                        <table style="width:100%; border-collapse:collapse; background:#276577; color:#fff;">
+                            <tr>
+                                <td style="padding:12px 16px; vertical-align:middle;">
+                                    <span t-if="company.logo" style="display:inline-block; vertical-align:middle; margin-right:10px;">
+                                        <img t-att-src="image_data_uri(company.logo)" style="max-height:44px; max-width:150px;"/>
+                                    </span>
+                                    <span style="display:inline-block; vertical-align:middle;">
+                                        <span style="font-size:17px; font-weight:500;" t-out="company.name"/><br/>
+                                        <span style="font-size:11px;">Service technique</span>
+                                    </span>
+                                </td>
+                                <td style="padding:12px 16px; text-align:right; vertical-align:middle; width:230px;">
+                                    <img t-att-src="image_data_uri(o._facility_logo())" style="height:30px;"/>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <div style="margin-top:14px; color:#55606A; font-size:12px;">
+                            Demande <b style="color:#1A1A1A;" t-out="o.name"/> · reçue le <t t-out="o.create_date" t-options="{'widget': 'date'}"/> · <t t-out="dict(o._fields['source'].selection).get(o.source, '')"/>
+                            <span t-if="o.priorite == '1'" style="background:#C2410C; color:#fff; border-radius:4px; padding:1px 7px; font-weight:700; font-size:11px; margin-left:6px;">URGENT</span>
+                            <span style="background:#D4E8EC; color:#1D4E5C; border-radius:4px; padding:1px 7px; font-size:11px; margin-left:6px;" t-out="dict(o._fields['state'].selection).get(o.state)"/>
+                        </div>
+                        <div style="font-size:24px; font-weight:300; margin:2px 0 12px;" t-out="o.titre"/>
+
+                        <table style="width:100%; border-collapse:separate; border-spacing:0;">
+                            <tr>
+                                <td style="width:56%; vertical-align:top; padding-right:18px;">
+                                    <div style="font-size:11px; font-weight:700; letter-spacing:.05em; color:#276577; border-bottom:2px solid #276577; padding-bottom:3px; margin-bottom:6px;">DEMANDE</div>
+                                    <p t-if="o.description" t-out="o.description" style="white-space:pre-line; line-height:1.45;"/>
+                                    <p t-else="" style="color:#888;">Pas de description.</p>
+                                    <p t-if="o.categorie_id" style="margin-top:8px;"><span style="color:#55606A;">Catégorie :</span> <b t-out="o.categorie_id.name"/></p>
+                                    <p t-if="o.objet_ids">
+                                        <t t-foreach="o.objet_ids" t-as="x"><span style="display:inline-block; background:#E1F0F3; color:#1E4E5C; border:1px solid #B7D6DD; border-radius:12px; padding:1px 9px; font-size:12px; margin-right:4px;">#<t t-out="x.name"/></span></t>
+                                    </p>
+                                    <p t-if="o.consigne" style="background:#F4F7F8; border-left:3px solid #276577; padding:6px 10px; margin-top:8px;"><b>Consigne :</b> <t t-out="o.consigne"/></p>
+                                </td>
+                                <td style="width:44%; vertical-align:top;">
+                                    <div style="font-size:11px; font-weight:700; letter-spacing:.05em; color:#276577; border-bottom:2px solid #276577; padding-bottom:3px; margin-bottom:6px;">LIEU</div>
+                                    <p><b t-out="o.adresse or 'Adresse non précisée'"/>
+                                        <span t-if="o.lieu_id" style="display:inline-block; background:#FDF0E6; color:#9A3412; border:1px solid #F6D3B8; border-radius:12px; padding:1px 9px; font-size:12px; margin-left:4px;">#<t t-out="o.lieu_id.name"/></span></p>
+                                    <p t-if="o.lieu_precision" t-out="o.lieu_precision"/>
+                                    <p t-if="o.latitude and o.longitude" style="color:#55606A; font-size:11px;">Position : <t t-out="'%.5f, %.5f' % (o.latitude, o.longitude)"/><br/><t t-out="o.carte_url"/></p>
+
+                                    <div style="font-size:11px; font-weight:700; letter-spacing:.05em; color:#276577; border-bottom:2px solid #276577; padding-bottom:3px; margin:14px 0 6px;">CONTACT</div>
+                                    <t t-set="people" t-value="o.demandeur_id | o.contact_ids"/>
+                                    <p t-if="not people" style="color:#888;">Pas de contact (demande interne).</p>
+                                    <p t-foreach="people" t-as="p" style="margin-bottom:6px;"><b t-out="p.name"/>
+                                        <t t-if="p.phone"><br/>Tél. <t t-out="p.phone"/></t>
+                                        <t t-if="p.email"><br/><t t-out="p.email"/></t></p>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <t t-set="photos" t-value="o.env['ir.attachment'].search([('res_model', '=', 'travaux.demande'), ('res_id', '=', o.id), ('mimetype', '=like', 'image/%')], order='id', limit=4)"/>
+                        <t t-if="photos or o.photo_avant">
+                            <div style="font-size:11px; font-weight:700; letter-spacing:.05em; color:#276577; border-bottom:2px solid #276577; padding-bottom:3px; margin:14px 0 8px;">PHOTOS</div>
+                            <div t-if="photos">
+                                <t t-foreach="photos" t-as="ph">
+                                    <img t-att-src="image_data_uri(ph.datas)" style="max-width:48%; max-height:250px; margin:0 1% 8px 0; border-radius:8px;"/>
+                                </t>
+                            </div>
+                            <div t-else="">
+                                <img t-att-src="image_data_uri(o.photo_avant)" style="max-width:60%; max-height:300px; border-radius:8px;"/>
+                            </div>
+                        </t>
+
+                        <t t-if="o.state == 'transferee' or o.service_transfert or o.equipe_id">
+                            <div style="font-size:11px; font-weight:700; letter-spacing:.05em; color:#276577; border-bottom:2px solid #276577; padding-bottom:3px; margin:14px 0 6px;">SUITE</div>
+                            <p t-if="o.state == 'transferee' or o.service_transfert">Demande hors compétence du service technique<t t-if="o.service_transfert">, transférée à <b t-out="o.service_transfert"/></t>.</p>
+                            <p t-elif="o.equipe_id">Équipe <b t-out="o.equipe_id.name"/><t t-if="o.date_prevue"> · prévu le <t t-out="o.date_prevue" t-options="{'widget': 'date'}"/></t><t t-if="o.duree_mesuree"> · <t t-out="'%.1f' % o.duree_mesuree"/> h mesurées</t></p>
+                        </t>
+
+                        <div style="margin-top:22px; border-top:1px solid #DDE3E5; padding-top:6px; color:#55606A; font-size:10px;">
+                            <t t-out="company.name"/><t t-if="company.street"> · <t t-out="company.street"/></t><t t-if="company.zip or company.city"> · <t t-out="company.zip"/> <t t-out="company.city"/></t><t t-if="company.email"> · <t t-out="company.email"/></t>
+                            <span style="float:right;">Document généré par FACILITY le <t t-out="context_timestamp(datetime.datetime.now()).strftime('%d/%m/%Y')"/></span>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+    <record id="action_report_demande" model="ir.actions.report">
+        <field name="name">Demande (PDF)</field>
+        <field name="model">travaux.demande</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">service_travaux.report_demande</field>
+        <field name="report_file">service_travaux.report_demande</field>
+        <field name="print_report_name">object.name</field>
+        <field name="binding_model_id" ref="model_travaux_demande"/>
+        <field name="binding_type">report</field>
+        <field name="paperformat_id" ref="paperformat_demande"/>
+    </record>
+</odoo>

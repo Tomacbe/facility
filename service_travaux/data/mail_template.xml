@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="mail_template_prise_en_charge" model="mail.template">
+            <field name="name">FACILITY : demande prise en charge</field>
+            <field name="model_id" ref="model_travaux_demande"/>
+            <field name="subject">Votre demande {{ object.name }} est prise en charge</field>
+            <field name="email_to">{{ object.demandeur_id.email }}</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div style="font-family: Roboto, Arial, sans-serif; font-size: 14px;">
+    <p>Bonjour,</p>
+    <p>Votre demande <b t-out="object.name"/> (<t t-out="object.titre"/><t t-if="object.adresse">, <t t-out="object.adresse"/></t>) est confiée à l'équipe <b t-out="object.equipe_id.name"/>.
+    <t t-if="object.date_prevue">Intervention prévue le <t t-out="object.date_prevue.strftime('%d/%m/%Y')"/>.</t></p>
+    <p><t t-out="object.env.company.name"/> · Service technique</p>
+</div>
+            </field>
+        </record>
+        <record id="mail_template_resolu" model="mail.template">
+            <field name="name">FACILITY : problème résolu</field>
+            <field name="model_id" ref="model_travaux_demande"/>
+            <field name="subject">Problème résolu : {{ object.titre }}</field>
+            <field name="email_to">{{ object.demandeur_id.email }}</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div style="font-family: Roboto, Arial, sans-serif; font-size: 14px;">
+    <p><b>Problème résolu.</b> Votre signalement <t t-out="object.name"/> (<t t-out="object.titre"/><t t-if="object.adresse">, <t t-out="object.adresse"/></t>) a été traité par l'équipe <t t-out="object.equipe_id.name"/>.</p>
+    <p>Vous trouverez en pièce jointe la photo après intervention. Merci pour votre signalement !</p>
+    <p><t t-out="object.env.company.name"/> · Service technique</p>
+</div>
+            </field>
+        </record>
+        <record id="mail_template_transfert" model="mail.template">
+            <field name="name">FACILITY : demande transférée</field>
+            <field name="model_id" ref="model_travaux_demande"/>
+            <field name="subject">Votre demande {{ object.name }} a été transférée</field>
+            <field name="email_to">{{ object.demandeur_id.email }}</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div style="font-family: Roboto, Arial, sans-serif; font-size: 14px;">
+    <p>Bonjour,</p>
+    <p>Votre demande <b t-out="object.name"/> (<t t-out="object.titre"/>) ne relève pas du Service technique. Elle a été transmise à : <b t-out="object.service_transfert"/>.</p>
+    <p><t t-out="object.env.company.name"/> · Service technique</p>
+</div>
+            </field>
+        </record>
+        <record id="mail_template_fusion" model="mail.template">
+            <field name="name">FACILITY : signalement fusionné</field>
+            <field name="model_id" ref="model_travaux_demande"/>
+            <field name="subject">Votre signalement {{ object.name }} : problème déjà signalé</field>
+            <field name="email_to">{{ object.demandeur_id.email }}</field>
+            <field name="auto_delete" eval="True"/>
+            <field name="body_html" type="html">
+<div style="font-family: Roboto, Arial, sans-serif; font-size: 14px;">
+    <p>Bonjour,</p>
+    <p>Merci pour votre signalement <b t-out="object.name"/> (<t t-out="object.titre"/><t t-if="object.adresse">, <t t-out="object.adresse"/></t>).</p>
+    <p>Ce problème nous avait déjà été signalé : votre signalement a été réuni avec la demande <b t-out="object.fusion_id.name"/>, qui est en cours de traitement.
+       Vous serez informé(e) de la suite comme la première personne qui l'a signalé.</p>
+    <p><t t-out="object.env.company.name"/> · Service technique</p>
+</div>
+            </field>
+        </record>
+    </data>
+</odoo>

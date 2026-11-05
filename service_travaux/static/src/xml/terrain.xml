@@ -1,0 +1,483 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="service_travaux.Terrain" owl="1">
+    <div t-attf-class="o_action o_tv_wa {{ ui.isSmall ? 'o_tv_small' : 'o_tv_large' }}">
+        <input type="file" accept="image/*" capture="environment" class="d-none" t-ref="file" t-on-change="onFile"/>
+        <input type="file" class="d-none" t-ref="doc" t-on-change="onDoc"/>
+
+        <!-- ================= colonne gauche (PC) / écran principal (mobile) -->
+        <div class="o_tv_side" t-if="!ui.isSmall or (!state.selId and !state.sig)">
+            <div class="o_tv_side_head">
+                <div class="d-flex align-items-center">
+                    <div class="flex-grow-1 lh-sm o_tv_app_id">
+                        <div class="o_tv_app_title" t-esc="state.data.company"/>
+                        <div t-if="state.data.my_team" class="o_tv_app_sub">Équipe <t t-esc="state.data.my_team.name"/></div>
+                    </div>
+                    <button t-if="state.tab === 'chats'" t-attf-class="o_tv_icon_btn {{ state.near ? 'active' : '' }}" t-att-aria-pressed="state.near ? 'true' : 'false'"
+                            title="Près de moi : les interventions les plus proches en premier" t-on-click="toggleNear">
+                        <i class="fa fa-location-arrow"/>
+                    </button>
+                    <button t-if="ui.isSmall and state.tab === 'chats'" class="o_tv_icon_btn" t-att-aria-expanded="state.headOpen ? 'true' : 'false'"
+                            title="Rechercher et filtrer" t-on-click="() => this.state.headOpen = !this.state.headOpen">
+                        <i t-attf-class="fa {{ state.headOpen ? 'fa-chevron-up' : 'fa-search' }}"/>
+                    </button>
+                    <t t-if="!ui.isSmall">
+                        <button t-attf-class="o_tv_icon_btn {{ state.tab === 'map' ? 'active' : '' }}" t-att-title="state.tab === 'map' ? 'Revenir aux interventions' : 'Carte'" t-on-click="() => this.showTab(state.tab === 'map' ? 'chats' : 'map')"><i class="fa fa-map-o"/></button>
+                        <button class="o_tv_icon_btn" title="Signaler" t-on-click="startSignaler"><i class="fa fa-camera"/></button>
+                    </t>
+                </div>
+                <t t-if="!ui.isSmall or (state.tab === 'chats' and state.headOpen)">
+                    <div class="o_tv_search mt-2">
+                        <i class="fa fa-search"/>
+                        <input type="search" placeholder="Rechercher une intervention" t-model="state.search"/>
+                    </div>
+                    <div class="o_tv_filters">
+                        <t t-foreach="FILTERS" t-as="f" t-key="f[0]">
+                            <button t-if="f[0] === 'all' or count(f[0])" t-attf-class="o_tv_chip {{ state.filter === f[0] ? 'active' : '' }}" t-on-click="() => this.setFilter(f[0])">
+                                <t t-esc="f[1]"/> <span class="o_tv_chip_n" t-esc="count(f[0])"/>
+                            </button>
+                        </t>
+                    </div>
+                    <select t-if="showOrg" class="o_tv_team_select" t-on-change="onOrg" title="Filtrer selon l'organigramme">
+                        <option value="" t-att-selected="isOrg('')"><t t-if="state.data.scope === 'global'">Toute l'organisation</t><t t-else="">Toutes mes équipes</t></option>
+                        <option value="none" t-att-selected="isOrg('none')">Demandes non attribuées</option>
+                        <optgroup t-if="(state.data.services or []).length and state.data.scope !== 'equipe'" label="Services">
+                            <t t-foreach="state.data.services" t-as="d" t-key="d.id">
+                                <option t-att-value="'dept:' + d.id" t-att-selected="isOrg('dept:' + d.id)" t-esc="d.name"/>
+                            </t>
+                        </optgroup>
+                        <t t-foreach="state.data.org" t-as="g" t-key="g.sup_id">
+                            <optgroup t-att-label="g.sup">
+                                <option t-att-value="'sup:' + g.sup_id" t-att-selected="isOrg('sup:' + g.sup_id)">Toutes les équipes de <t t-esc="g.sup"/></option>
+                                <t t-foreach="g.teams" t-as="t" t-key="t.id">
+                                    <option t-att-value="'team:' + t.id" t-att-selected="isOrg('team:' + t.id)">— <t t-esc="t.name"/></option>
+                                </t>
+                            </optgroup>
+                        </t>
+                    </select>
+                </t>
+            </div>
+
+            <div class="o_tv_side_body">
+                <t t-if="state.tab === 'chats' or !ui.isSmall" t-call="service_travaux.Terrain.List"/>
+                <t t-elif="state.tab === 'map'" t-call="service_travaux.Terrain.Map"/>
+                <t t-elif="state.tab === 'hours'" t-call="service_travaux.Terrain.Hours"/>
+                <t t-elif="state.tab === 'zones'" t-call="service_travaux.Terrain.Zones"/>
+            </div>
+
+            <t t-if="ui.isSmall">
+                <button t-if="state.tab === 'chats'" class="o_tv_fab" title="Signaler" t-on-click="startSignaler"><i class="fa fa-camera"/></button>
+                <nav class="o_tv_bottom_nav">
+                    <button t-att-class="state.tab === 'chats' ? 'active' : ''" t-on-click="() => this.showTab('chats')"><i class="fa fa-comments-o"/><span>Interventions</span></button>
+                    <button t-att-class="state.tab === 'map' ? 'active' : ''" t-on-click="() => this.showTab('map')"><i class="fa fa-map-o"/><span>Carte</span></button>
+                    <button t-on-click="startSignaler"><i class="fa fa-plus"/><span>Signaler</span></button>
+                </nav>
+            </t>
+        </div>
+
+        <!-- ================= panneau principal -->
+        <div class="o_tv_main" t-if="!ui.isSmall or state.selId or state.sig">
+            <t t-if="state.sig" t-call="service_travaux.Terrain.Signaler"/>
+            <t t-elif="state.conv" t-call="service_travaux.Terrain.Conv"/>
+            <t t-elif="!ui.isSmall and state.tab === 'map'" t-call="service_travaux.Terrain.Map"/>
+            <t t-elif="!ui.isSmall and state.tab === 'hours'" t-call="service_travaux.Terrain.Hours"/>
+            <t t-elif="!ui.isSmall and state.tab === 'zones'" t-call="service_travaux.Terrain.Zones"/>
+            <div t-elif="ui.isSmall" class="o_tv_empty"><i class="fa fa-spinner fa-spin"/></div>
+            <div t-else="" class="o_tv_welcome">
+                <h2 t-esc="state.data.company"/>
+                <p>Chaque intervention est une discussion : photos, messages vocaux, documents et consignes au même endroit.</p>
+                <ol class="o_tv_welcome_steps">
+                    <li><b>Choisissez</b> une intervention à gauche (triées par statut, comme le kanban).</li>
+                    <li><b>Démarrer</b> quand l'équipe commence : le temps est mesuré.</li>
+                    <li><b>Photo « après »</b> puis <b>Terminé</b> : la durée est calculée et le superviseur valide.</li>
+                </ol>
+            </div>
+        </div>
+
+        <!-- ================= visionneuse avant / après -->
+        <div t-if="state.viewer" class="o_tv_viewer" t-on-click="closeViewer">
+            <div class="o_tv_viewer_inner">
+                <t t-if="state.viewer.avant and state.viewer.apres">
+                    <div class="o_tv_viewer_pair">
+                        <figure><span class="o_tv_tag o_tv_tag_avant">AVANT</span><img t-att-src="state.viewer.avant" alt="Avant"/></figure>
+                        <figure><span class="o_tv_tag o_tv_tag_apres">APRÈS</span><img t-att-src="state.viewer.apres" alt="Après"/></figure>
+                    </div>
+                </t>
+                <t t-else="">
+                    <img class="o_tv_viewer_single" t-att-src="state.viewer.single or state.viewer.avant" alt="Photo"/>
+                </t>
+                <div class="o_tv_viewer_close"><i class="fa fa-times"/> Fermer</div>
+            </div>
+        </div>
+    </div>
+</t>
+
+<!-- Liste des interventions -->
+<t t-name="service_travaux.Terrain.List" owl="1">
+    <div t-if="!items.length" class="o_tv_empty">Aucune intervention.</div>
+    <t t-foreach="sections" t-as="sec" t-key="sec.key">
+        <div t-if="sec.title" class="o_tv_section"><span class="o_tv_dot" t-att-style="'background:' + sec.color"/> <t t-esc="sec.title"/> <span class="o_tv_section_n" t-esc="sec.items.length"/></div>
+        <t t-foreach="sec.items" t-as="it" t-key="it.id">
+            <div t-attf-class="o_tv_row {{ state.selId === it.id ? 'active' : '' }}" t-on-click="() => this.open(it.id)">
+                <div class="o_tv_avatar" t-att-style="'box-shadow: 0 0 0 2px ' + ST_RING[it.st]">
+                    <img t-if="it.has_avant" t-att-src="imgUrl(it.id, 'photo_avant', '128x128')" alt=""/>
+                    <i t-else="" class="fa fa-wrench"/>
+                </div>
+                <div class="o_tv_row_body">
+                    <div class="d-flex justify-content-between gap-2">
+                        <div class="o_tv_row_title text-truncate"><t t-esc="it.titre"/> · <t t-esc="it.ref"/></div>
+                        <div t-attf-class="o_tv_row_time {{ it.st === 'recue' ? 'o_tv_unread' : '' }}" t-esc="chatTime(it.last.date)"/>
+                    </div>
+                    <div class="d-flex align-items-center gap-1 text-truncate">
+                        <span class="o_tv_st" t-att-style="ST_STYLE[it.st]" t-esc="it.st_label"/>
+                        <span t-if="it.urgent and it.st !== 'close'" class="o_tv_st o_tv_urgent">URGENT</span>
+                        <span class="o_tv_row_prev text-truncate" t-esc="it.last.text"/>
+                    </div>
+                    <div class="o_tv_row_sub text-truncate"><span t-if="state.near and itemDist(it) !== null" class="o_tv_row_dist"><i class="fa fa-location-arrow"/> <t t-esc="fmtDist(itemDist(it))"/></span> <b t-if="it.date_prevue and it.st !== 'close'" class="o_tv_row_day" t-esc="shortDate(it.date_prevue)"/> <b t-if="it.tz_total" class="o_tv_row_tz"><t t-esc="it.tz_done"/>/<t t-esc="it.tz_total"/> zones</b> <span t-if="it.lieu" t-attf-class="o_tv_lieu o_tv_lieu_sm {{ it.lieu_state === 'propose' ? 'o_tv_lieu_prop' : '' }}" t-esc="it.lieu"/><t t-foreach="it.objets or []" t-as="o" t-key="o.id"><span t-attf-class="o_tv_lieu o_tv_obj o_tv_lieu_sm {{ o.state === 'propose' ? 'o_tv_lieu_prop' : '' }}" t-esc="o.name"/></t> <t t-esc="it.adresse"/><t t-if="it.equipe"> · équipe <t t-esc="it.equipe"/></t></div>
+                </div>
+            </div>
+        </t>
+    </t>
+</t>
+
+<!-- Conversation -->
+<t t-name="service_travaux.Terrain.Conv" owl="1">
+    <t t-set="c" t-value="state.conv"/>
+    <div class="o_tv_conv">
+        <div class="o_tv_conv_head">
+            <button t-if="ui.isSmall" class="o_tv_back" t-on-click="back" title="Retour"><i class="fa fa-arrow-left"/></button>
+            <div class="o_tv_avatar o_tv_avatar_sm" t-att-style="'box-shadow: 0 0 0 2px ' + ST_RING[c.st]" t-on-click="() => this.viewPhotos()">
+                <img t-if="c.has_avant" t-att-src="imgUrl(c.id, 'photo_avant', '128x128')" alt=""/>
+                <i t-else="" class="fa fa-wrench"/>
+            </div>
+            <div class="flex-grow-1 lh-sm overflow-hidden">
+                <div class="o_tv_conv_title text-truncate"><t t-esc="c.titre"/> · <t t-esc="c.ref"/></div>
+                <div class="o_tv_conv_sub text-truncate"><t t-if="c.lieu or (c.objets or []).length"><t t-esc="c.lieu"/><t t-foreach="c.objets or []" t-as="o" t-key="o.id"><t t-esc="o.name"/></t> · </t><t t-esc="c.adresse"/><t t-if="c.equipe"> · équipe <t t-esc="c.equipe"/></t></div>
+            </div>
+            <span class="o_tv_st" t-att-style="ST_STYLE[c.st]" t-esc="c.st_label"/>
+            <select t-if="c.is_sup and !ui.isSmall and c.state !== 'transferee'" class="o_tv_input o_tv_input_sm o_tv_statsel mb-0" t-on-change="onStatutSelect" title="Remettre dans un autre statut">
+                <option value="">Changer le statut…</option>
+                <t t-foreach="statutChoices" t-as="o" t-key="o[0]"><option t-att-value="o[0]" t-esc="o[1]"/></t>
+            </select>
+            <button t-if="c.is_sup and !ui.isSmall" class="o_tv_icon_btn o_tv_icon_dark" title="Ouvrir la fiche" t-on-click="openBureau"><i class="fa fa-external-link"/></button>
+        </div>
+
+        <TvTimeline t-if="!c.tz" steps="c.timeline" compact="true"/>
+        <div t-if="c.tz" class="o_tv_tztabs" role="tablist">
+            <button role="tab" t-att-aria-selected="state.convTab === 'zones' ? 'true' : 'false'" t-attf-class="{{ state.convTab === 'zones' ? 'on' : '' }}" t-on-click="() => this.state.convTab = 'zones'">
+                <i class="fa fa-list-ul"/> Zones <span class="o_tv_tztabs_n"><t t-esc="c.tz_done"/>/<t t-esc="c.tz_total"/></span></button>
+            <button role="tab" t-att-aria-selected="state.convTab === 'chat' ? 'true' : 'false'" t-attf-class="{{ state.convTab === 'chat' ? 'on' : '' }}" t-on-click="() => { this.state.convTab = 'chat'; this.scrollNext = true; }">
+                <i class="fa fa-comments-o"/> Discussion</button>
+        </div>
+        <t t-if="c.tz and state.convTab === 'zones'" t-call="service_travaux.Terrain.Tz"/>
+        <div t-else="" class="o_tv_chat" t-ref="chat">
+            <div t-if="c.consigne and c.state !== 'close'" class="o_tv_pinned"><i class="fa fa-thumb-tack"/> <b>Consigne :</b> <t t-esc="c.consigne"/></div>
+            <div t-if="c.precision and c.state !== 'close'" class="o_tv_pinned"><i class="fa fa-map-marker"/> <b>Où exactement :</b> <t t-esc="c.precision"/></div>
+            <div t-if="(c.demandeur_tel or c.demandeur) and c.type === 'demande' and c.state !== 'close'" class="o_tv_pinned"><i class="fa fa-user-o"/> <b>Demandeur :</b> <t t-esc="c.demandeur"/><a t-if="c.demandeur_tel" t-att-href="'tel:' + c.demandeur_tel" class="ms-1"><i class="fa fa-phone"/> <t t-esc="c.demandeur_tel"/></a></div>
+            <div t-if="c.liste and c.state !== 'close'" class="o_tv_pinned"><i class="fa fa-repeat"/> <b>Circuit (pour mémoire) :</b><div class="o_tv_liste mt-1" t-esc="c.liste"/></div>
+            <t t-foreach="groupedMessages" t-as="m" t-key="m.key">
+                <div t-if="m.kind === 'day'" class="o_tv_sys o_tv_day"><span t-esc="m.text"/></div>
+                <div t-elif="m.kind === 'sys'" class="o_tv_sys"><span t-esc="m.text"/></div>
+                <div t-else="" t-attf-class="o_tv_msg {{ m.out ? 'out' : 'in' }}">
+                    <div class="o_tv_bubble">
+                        <div t-if="!m.out" class="o_tv_author" t-att-style="'color:' + authorColor(m.author)">
+                            <t t-esc="m.author"/><t t-if="m.role"> · <t t-esc="m.role"/></t>
+                        </div>
+                        <t t-foreach="m.images" t-as="im" t-key="im.id">
+                            <div class="o_tv_photo" t-on-click="() => this.viewPhotos(m)">
+                                <img t-att-src="im.url" alt="Photo" loading="lazy"/>
+                                <span t-if="m.tag" t-attf-class="o_tv_tag {{ m.tag === 'AVANT' ? 'o_tv_tag_avant' : 'o_tv_tag_apres' }}" t-esc="m.tag"/>
+                            </div>
+                        </t>
+                        <t t-foreach="m.files" t-as="f" t-key="f.id">
+                            <div t-if="f.audio" class="o_tv_audio"><i class="fa fa-microphone"/><audio controls="controls" preload="none" t-att-src="f.url"/></div>
+                            <a t-else="" class="o_tv_file" t-att-href="f.download" target="_blank">
+                                <i t-attf-class="fa {{ fileIcon(f) }}"/>
+                                <span class="flex-grow-1 text-truncate"><t t-esc="f.name"/><small class="d-block o_tv_meta" t-esc="fileSize(f.size)"/></span>
+                                <i class="fa fa-download"/>
+                            </a>
+                        </t>
+                        <div t-if="m.text" class="o_tv_text" t-esc="m.text"/>
+                        <div class="o_tv_time"><t t-esc="hhmm(m.date)"/><i t-if="m.out" class="fa fa-check ms-1"/></div>
+                    </div>
+                </div>
+            </t>
+        </div>
+
+        <t t-if="state.fin and !state.fin.zone" t-call="service_travaux.Terrain.Fin"/>
+        <div class="o_tv_actions" t-if="!state.fin and (c.can_start or c.can_finish or c.can_close or c.can_reopen or c.state === 'valider' or c.can_assign)">
+            <button t-if="c.can_start" class="o_tv_btn o_tv_btn_primary" t-att-disabled="state.busy" t-on-click="() => this.doAction('demarrer')"><i class="fa fa-play"/> Démarrer</button>
+            <button t-if="c.can_finish" class="o_tv_btn o_tv_btn_success" t-att-disabled="state.busy" t-on-click="() => this.doAction('terminer')">
+                <i class="fa fa-check"/> Terminé<t t-if="c.type === 'demande' and !c.has_apres"> (photo après)</t>
+            </button>
+            <t t-if="c.state === 'valider'">
+                <span class="o_tv_duree">
+                    <t t-if="c.nb_presents">Durée : <t t-esc="fmtH(c.duree_horloge)"/> × <t t-esc="c.nb_presents"/> personne<t t-if="c.nb_presents > 1">s</t> = <b t-esc="fmtH(c.duree_mesuree)"/></t>
+                    <t t-else="">Durée mesurée : <b t-esc="fmtH(c.duree_mesuree)"/></t>
+                    <t t-if="c.avancement"> · circuit fait à <b><t t-esc="c.avancement"/> %</b></t> ·
+                    <a href="#" t-on-click.prevent="corrigerDuree">corriger</a></span>
+            </t>
+            <button t-if="c.can_close" class="o_tv_btn o_tv_btn_success" t-att-disabled="state.busy" t-on-click="() => this.doAction('cloturer')"><i class="fa fa-check-circle"/> Valider et clôturer</button>
+            <button t-if="c.can_reopen and c.state === 'close'" class="o_tv_btn o_tv_btn_light" t-on-click="() => this.doAction('rouvrir')">Rouvrir</button>
+            <span t-if="c.can_assign" class="o_tv_duree">À attribuer depuis « Demandes à traiter » ou le planning.</span>
+        </div>
+        <div class="o_tv_impbar" t-if="c.can_impute">
+            <span><i class="fa fa-clock-o"/> Heures de l'équipe : <b t-esc="fmtH(c.duree_mesuree)"/><t t-if="c.duree_prevue"> / prévu <t t-esc="fmtH(c.duree_prevue)"/></t></span>
+            <a href="#" t-on-click.prevent="toggleImp"><t t-if="!state.impOpen">+ Imputer des heures</t><t t-else="">Annuler</t></a>
+            <div t-if="state.impOpen" class="o_tv_impform">
+                <input type="date" class="o_tv_input" t-att-value="state.imp.date" t-on-change="(ev) => this.onImp('date', ev)"/>
+                <input type="number" step="0.25" min="0" class="o_tv_input" placeholder="Heures" t-att-value="state.imp.h" t-on-input="(ev) => this.onImp('h', ev)"/>
+                <button class="o_tv_btn o_tv_btn_primary" t-on-click="() => this.addImputation(c.id)">Imputer</button>
+            </div>
+        </div>
+
+        <form class="o_tv_composer" t-on-submit="send">
+            <t t-if="state.rec">
+                <button type="button" class="o_tv_cam" title="Annuler" t-on-click="() => this.stopRecording(true)"><i class="fa fa-trash"/></button>
+                <div class="o_tv_recording"><span class="o_tv_recdot"/> Enregistrement… <b t-esc="recTime"/></div>
+                <button type="button" class="o_tv_send" title="Envoyer le message vocal" t-on-click="toggleRecording"><i class="fa fa-paper-plane"/></button>
+            </t>
+            <t t-else="">
+                <button type="button" class="o_tv_cam" t-att-disabled="state.busy" t-on-click="() => this.pickPhoto()" title="Photo"><i class="fa fa-camera"/></button>
+                <button type="button" class="o_tv_cam" t-att-disabled="state.busy" t-on-click="pickDoc" title="Joindre un fichier (plan, PDF, document…)"><i class="fa fa-paperclip"/></button>
+                <textarea rows="1" placeholder="Message" t-model="state.draft" t-on-keydown="onKey"/>
+                <button t-if="state.draft.trim()" type="submit" class="o_tv_send" title="Envoyer"><i class="fa fa-paper-plane"/></button>
+                <button t-else="" type="button" class="o_tv_send" title="Message vocal : appuyez pour enregistrer" t-att-disabled="state.busy" t-on-click="toggleRecording"><i class="fa fa-microphone"/></button>
+            </t>
+        </form>
+    </div>
+</t>
+
+<!-- Carte -->
+<t t-name="service_travaux.Terrain.Map" owl="1">
+    <div class="o_tv_map_wrap">
+        <div class="o_tv_map" t-ref="map"/>
+        <div t-if="noPosition" class="o_tv_map_note"><t t-esc="noPosition"/> intervention(s) sans position GPS</div>
+    </div>
+</t>
+
+<!-- « Terminé » / « Fait » : qui était présent, part du circuit, temps compté -->
+<t t-name="service_travaux.Terrain.Fin" owl="1">
+        <div class="o_tv_fin">
+            <t t-if="state.fin.ask_pct">
+                <div class="o_tv_small_label">PART DU CIRCUIT RÉALISÉE</div>
+                <div class="o_tv_fin_pct">
+                    <t t-foreach="[50, 80, 100]" t-as="p" t-key="p">
+                        <button t-attf-class="o_tv_btn {{ state.fin.pct === p ? 'o_tv_btn_primary' : 'o_tv_btn_light' }}" t-on-click="() => this.state.fin.pct = p"><t t-esc="p"/> %</button>
+                    </t>
+                </div>
+            </t>
+            <div class="o_tv_small_label">QUI ÉTAIT PRÉSENT ? · ÉQUIPE <t t-esc="state.fin.team"/></div>
+            <t t-foreach="state.fin.people" t-as="e" t-key="e.id">
+                <label class="o_tv_check"><input type="checkbox" t-att-checked="e.on" t-on-change="() => e.on = !e.on"/> <t t-esc="e.name"/></label>
+            </t>
+            <t t-if="state.fin.others.length">
+                <a href="#" class="o_tv_fin_more" t-on-click.prevent="() => this.state.fin.more = !this.state.fin.more">
+                    <t t-if="!state.fin.more">+ Quelqu'un d'une autre équipe est venu en renfort</t><t t-else="">Masquer les autres équipes</t>
+                </a>
+                <t t-if="state.fin.more">
+                    <t t-foreach="state.fin.others" t-as="e" t-key="e.id">
+                        <label class="o_tv_check"><input type="checkbox" t-att-checked="e.on" t-on-change="() => e.on = !e.on"/> <t t-esc="e.name"/> <small class="o_tv_meta">· <t t-esc="e.team"/></small></label>
+                    </t>
+                </t>
+            </t>
+            <label class="o_tv_small_label mt-2" for="tv_fin_duree">DURÉE SUR PLACE (HEURES)</label>
+            <div class="o_tv_fin_duree">
+                <button type="button" class="o_tv_btn o_tv_btn_light" aria-label="Moins un quart d'heure" t-on-click="() => this.state.fin.duree = String(Math.max(0.25, finDuree - 0.25))">−</button>
+                <input id="tv_fin_duree" type="number" min="0.25" step="0.25" class="o_tv_input" t-model="state.fin.duree"/>
+                <button type="button" class="o_tv_btn o_tv_btn_light" aria-label="Plus un quart d'heure" t-on-click="() => this.state.fin.duree = String(finDuree + 0.25)">+</button>
+            </div>
+            <div t-if="finDuree > finMax" class="o_tv_hint o_tv_hint_warn mt-1">Pas plus de <t t-esc="fmtH(finMax)"/> par personne et par jour : corrigez la durée.</div>
+            <div class="o_tv_fin_sum"><t t-esc="fmtH(finDuree)"/> × <t t-esc="finCount"/> personne<t t-if="finCount > 1">s</t> = <b t-esc="fmtH(finDuree * finCount)"/> comptées pour l'équipe</div>
+            <div class="o_tv_fin_btns">
+                <button class="o_tv_btn o_tv_btn_light" t-on-click="() => this.state.fin = null">Annuler</button>
+                <button class="o_tv_btn o_tv_btn_success" t-att-disabled="state.busy or !finCount or !finDuree or finDuree > finMax or (state.fin.ask_pct and !state.fin.pct)" t-on-click="confirmerFin"><i class="fa fa-check"/> Confirmer</button>
+            </div>
+        </div>
+</t>
+
+<!-- Zones à entretenir (tournées) : un appui « Fait » par zone -->
+<t t-name="service_travaux.Terrain.Zones" owl="1">
+    <div class="o_tv_zones">
+        <div t-if="!hasZones" class="o_tv_empty">Aucune tournée de zones pour votre équipe en ce moment.</div>
+        <t t-foreach="state.zones.circuits" t-as="c" t-key="c.id">
+            <div class="o_tv_zc">
+                <div class="o_tv_zc_head">
+                    <div class="flex-grow-1">
+                        <div class="o_tv_zc_name" t-esc="c.name"/>
+                        <div class="o_tv_zc_sub"><t t-esc="c.team"/> · <t t-if="c.mode === 'lot'"><t t-esc="c.total"/> points, en une tournée<t t-if="c.lot_dernier"> · dernière : <t t-esc="c.lot_dernier"/></t></t><t t-else="">les plus anciennes en haut</t></div>
+                    </div>
+                    <button t-if="c.mode === 'lot'" class="o_tv_zone_btn" t-att-disabled="state.busy" t-on-click="() => this.lotDemarrer(c)"><t t-if="c.lot_id">Reprendre</t><t t-else="">Démarrer</t></button>
+                </div>
+                <t t-foreach="zonesTriees(c)" t-as="z" t-key="z.id">
+                    <div t-attf-class="o_tv_zone {{ z.today ? 'is_done' : '' }} {{ z.cours ? 'is_run' : '' }}">
+                        <img t-if="z.vignette" class="o_tv_zone_ref" t-att-src="z.vignette" alt=""/>
+                        <div class="o_tv_zone_txt">
+                            <div class="o_tv_zone_name" t-esc="z.name"/>
+                            <div class="o_tv_zone_meta">
+                                <span t-if="z.cours" class="o_tv_zone_run">en cours depuis <t t-esc="zoneDebut(z)"/></span>
+                                <span t-elif="c.mode !== 'lot'" class="o_tv_zone_age" t-esc="zoneAge(z)"/>
+                                <t t-if="z.lieu"> · <t t-esc="z.lieu"/></t>
+                            </div>
+                            <div t-if="z.note" class="o_tv_zone_note"><i class="fa fa-info-circle"/> <t t-esc="z.note"/></div>
+                        </div>
+                        <t t-if="z.today">
+                            <img t-if="z.thumb" class="o_tv_zone_thumb" t-att-src="z.thumb" alt="Photo" t-on-click="() => this.zoneView(z)"/>
+                            <button class="o_tv_zone_cam" title="Ajouter une photo" t-on-click="() => this.zonePick(z)"><i class="fa fa-camera"/></button>
+                            <button t-attf-class="o_tv_zone_ok {{ z.fait ? '' : 'is_old' }}" title="Annuler (appui par erreur)" t-on-click="() => this.zoneAnnuler(z)"><i class="fa fa-check"/></button>
+                        </t>
+                        <span t-elif="c.mode === 'lot'" class="o_tv_zone_void"/>
+                        <t t-elif="z.cours">
+                            <button class="o_tv_zone_cam" title="Démarré par erreur : annuler" t-on-click="() => this.zoneStop(z)"><i class="fa fa-times"/></button>
+                            <button class="o_tv_zone_btn is_fin" t-att-disabled="state.busy" t-on-click="() => this.zoneFin(z)">Fait</button>
+                        </t>
+                        <button t-else="" class="o_tv_zone_btn" t-att-disabled="state.busy" t-on-click="() => this.zoneDemarrer(z)">Démarrer</button>
+                    </div>
+                    <div t-if="state.fin and state.fin.zone === z.id" t-call="service_travaux.Terrain.Fin"/>
+                </t>
+            </div>
+        </t>
+    </div>
+</t>
+
+<!-- Tournée : les zones, sous-niveau de la discussion -->
+<t t-name="service_travaux.Terrain.Tz" owl="1">
+    <t t-set="c" t-value="state.conv"/>
+    <div class="o_tv_chat o_tv_tz">
+        <div class="o_tv_tz_head">
+            <span class="flex-grow-1"><t t-if="tzLeft"><b t-esc="tzLeft"/> zone<t t-if="tzLeft > 1">s</t> à faire, dans l'ordre qui vous arrange</t><t t-else="">Toutes les zones sont passées.</t></span>
+            <button t-if="tzLeft" t-attf-class="o_tv_btn o_tv_btn_xs {{ state.pos ? 'o_tv_btn_light' : 'o_tv_btn_primary' }}" t-on-click="() => this.locateMe()">
+                <i class="fa fa-location-arrow"/> <t t-if="state.pos">Actualiser ma position</t><t t-else="">Les plus proches</t></button>
+        </div>
+        <div t-if="c.consigne" class="o_tv_pinned"><i class="fa fa-thumb-tack"/> <b>Consigne :</b> <t t-esc="c.consigne"/></div>
+        <t t-foreach="tzZones" t-as="z" t-key="z.id">
+            <div t-attf-class="o_tv_zone {{ ['fait', 'inutile'].includes(z.status) ? 'is_done' : '' }} {{ z.status === 'cours' ? 'is_run' : '' }}">
+                <img t-if="z.vignette" class="o_tv_zone_ref" t-att-src="z.vignette" alt=""/>
+                <div class="o_tv_zone_txt">
+                    <div class="o_tv_zone_name"><t t-esc="z.name"/> <span t-if="z.id === tzNearest" class="o_tv_tz_near">la plus proche</span></div>
+                    <div class="o_tv_zone_meta">
+                        <span t-if="z.status === 'todo' and z.m !== null" class="o_tv_row_dist"><i class="fa fa-location-arrow"/> <t t-esc="fmtDist(z.m)"/> · </span>
+                        <span t-attf-class="{{ z.status === 'cours' ? 'o_tv_zone_run' : 'o_tv_zone_age' }}" t-esc="tzMeta(z)"/>
+                        <t t-if="z.lieu"> · <t t-esc="z.lieu"/></t>
+                    </div>
+                    <div t-if="z.note and z.status === 'todo'" class="o_tv_zone_note"><i class="fa fa-info-circle"/> <t t-esc="z.note"/></div>
+                </div>
+                <div t-if="z.status === 'todo'" class="o_tv_tz_btns">
+                    <button class="o_tv_zone_btn is_light" t-att-disabled="state.busy" title="Zone vue : pas d'entretien nécessaire, clôturée à 0 h" t-on-click="() => this.tzInutile(z)">Pas nécessaire</button>
+                    <button class="o_tv_zone_btn" t-att-disabled="state.busy" t-on-click="() => this.tzDemarrer(z)">Démarrer</button>
+                </div>
+                <t t-elif="z.status === 'cours'">
+                    <button class="o_tv_zone_cam" title="Démarré par erreur : annuler" t-on-click="() => this.tzStop(z)"><i class="fa fa-times"/></button>
+                    <button class="o_tv_zone_btn is_fin" t-att-disabled="state.busy" t-on-click="() => this.tzFin(z)">Fait</button>
+                </t>
+                <button t-elif="z.today" class="o_tv_zone_ok" title="Annuler ce passage (appui par erreur)" t-on-click="() => this.tzAnnuler(z)"><i t-attf-class="fa {{ z.status === 'inutile' ? 'fa-minus' : 'fa-check' }}"/></button>
+                <span t-else="" class="o_tv_zone_ok is_old"><i t-attf-class="fa {{ z.status === 'inutile' ? 'fa-minus' : 'fa-check' }}"/></span>
+            </div>
+            <div t-if="state.fin and state.fin.tz and state.fin.zone === z.id" t-call="service_travaux.Terrain.Fin"/>
+        </t>
+    </div>
+</t>
+
+<!-- Heures de l'équipe -->
+<t t-name="service_travaux.Terrain.Hours" owl="1">
+    <div class="o_tv_hours">
+        <h3>Heures de l'équipe<t t-if="state.hours and state.hours.team"> · <t t-esc="state.hours.team"/></t></h3>
+        <p class="text-muted small">Mesurées par Démarrer / Terminé ou imputées à la main. Enregistrées pour l'équipe, jamais par personne.</p>
+        <t t-if="state.hours">
+            <div class="o_tv_hours_total">
+                <div class="d-flex justify-content-between"><span>Cette semaine</span><b t-esc="fmtH(state.hours.week)"/></div>
+                <t t-set="ld" t-value="hoursLoad"/>
+                <div t-if="ld" class="o_tv_hours_load">
+                    Prévu <t t-esc="fmtH(state.hours.planned)"/> / <t t-esc="state.hours.cap"/> h de capacité · <b t-esc="ld.label"/>
+                    <div class="o_tv_bar mt-1"><span t-att-style="'width:' + ld.bar + '%;background:#fff'"/></div>
+                </div>
+            </div>
+            <div class="o_tv_card o_tv_impcard" t-if="state.imp">
+                <b>Imputer des heures à un travail</b>
+                <select class="o_tv_input mt-2" t-on-change="(ev) => this.onImp('task', ev)">
+                    <option value="">Choisir le travail…</option>
+                    <t t-foreach="state.hours.tasks" t-as="t" t-key="t.id"><option t-att-value="t.id" t-att-selected="isImpTask(t.id)" t-esc="t.label"/></t>
+                </select>
+                <div class="d-flex gap-2 mt-2">
+                    <input type="date" class="o_tv_input" t-att-value="state.imp.date" t-on-change="(ev) => this.onImp('date', ev)"/>
+                    <input type="number" step="0.25" min="0" class="o_tv_input" placeholder="Heures" t-att-value="state.imp.h" t-on-input="(ev) => this.onImp('h', ev)"/>
+                    <button class="o_tv_btn o_tv_btn_primary" t-on-click="() => this.addImputation()">Imputer</button>
+                </div>
+            </div>
+            <t t-foreach="hoursByDay" t-as="g" t-key="g.key">
+                <div class="o_tv_hours_day"><span t-esc="g.day"/><b t-esc="fmtH(g.total)"/></div>
+                <t t-foreach="g.rows" t-as="r" t-key="r.key">
+                    <div class="o_tv_hours_row" t-on-click="() => this.open(r.id)">
+                        <span class="text-truncate"><t t-esc="r.titre"/> <small class="text-muted" t-esc="r.ref"/></span>
+                        <span><i t-if="r.origine === 'manuel'" class="fa fa-pencil text-muted me-1" title="Imputée à la main"/><t t-esc="fmtH(r.h)"/></span>
+                    </div>
+                </t>
+            </t>
+            <div t-if="!state.hours.rows.length" class="o_tv_empty">Pas encore d'heures cette semaine.</div>
+        </t>
+    </div>
+</t>
+
+<!-- Signaler -->
+<t t-name="service_travaux.Terrain.Signaler" owl="1">
+    <t t-set="s" t-value="state.sig"/>
+    <div class="o_tv_conv">
+        <div class="o_tv_conv_head">
+            <button class="o_tv_back" t-on-click="cancelSignaler" title="Annuler"><i class="fa fa-times"/></button>
+            <div class="o_tv_conv_title flex-grow-1">Signaler un problème</div>
+        </div>
+        <div class="o_tv_sig">
+            <div class="o_tv_sig_photo" t-on-click="() => this.pickPhoto('sig')">
+                <img t-if="s.photo" t-att-src="'data:image/jpeg;base64,' + s.photo" alt="Photo"/>
+                <div t-else="" class="text-center"><i class="fa fa-camera fa-3x"/><div>Prendre une photo</div></div>
+            </div>
+            <label>Quoi ?</label>
+            <div class="o_tv_filters flex-wrap">
+                <t t-foreach="state.data.categories" t-as="cat" t-key="cat.id">
+                    <button t-attf-class="o_tv_chip {{ s.categorie_id === cat.id ? 'active' : '' }}" t-on-click="() => this.selectCat(cat.id)" t-esc="cat.name"/>
+                </t>
+            </div>
+            <label>Titre</label>
+            <input class="o_tv_input" placeholder="ex. Dépôt clandestin" t-model="s.titre"/>
+            <label>Où ?</label>
+            <div class="d-flex gap-2">
+                <input class="o_tv_input flex-grow-1" placeholder="Rue, numéro" t-model="s.adresse"/>
+                <button class="o_tv_btn o_tv_btn_light" t-on-click="locate"><i t-attf-class="fa {{ s.locating ? 'fa-spinner fa-spin' : 'fa-crosshairs' }}"/> Ma position</button>
+            </div>
+            <label># Lieu connu <span class="o_tv_meta fw-normal">(facultatif)</span></label>
+            <div class="o_tv_hashinput"><span>#</span>
+                <input placeholder="ÉcoleDuCentre, MaisonCommunale…" t-att-value="s.lieu" t-on-input="onSigLieu"/>
+            </div>
+            <div t-if="sigLieux.length" class="o_tv_filters flex-wrap mt-1 align-items-center">
+                <span class="o_tv_meta"><t t-if="s.lieu">Existants :</t><t t-elif="s.lat">Aux alentours :</t><t t-else="">Fréquents :</t></span>
+                <t t-foreach="sigLieux" t-as="l" t-key="l.id">
+                    <button t-attf-class="o_tv_lieu o_tv_lieu_btn {{ sigLieuKey === l.key ? 'active' : '' }}" t-on-click="() => this.pickLieu(l)">#<t t-esc="l.name"/><small t-if="l.distLabel"> · <t t-esc="l.distLabel"/></small></button>
+                </t>
+            </div>
+            <div t-if="sigLieuNew" class="o_tv_meta mt-1"><i class="fa fa-info-circle"/> Nouveau # : il sera proposé au superviseur, qui le confirmera.</div>
+            <label># Ce qui est concerné <span class="o_tv_meta fw-normal">(facultatif, plusieurs possibles)</span></label>
+            <div class="o_tv_filters flex-wrap align-items-center">
+                <t t-foreach="s.objets" t-as="o" t-key="o">
+                    <span class="o_tv_lieu o_tv_obj active">#<t t-esc="o"/> <i class="fa fa-times" t-on-click="() => this.sigDelObj(o)"/></span>
+                </t>
+            </div>
+            <div class="d-flex gap-2 mt-1">
+                <div class="o_tv_hashinput flex-grow-1"><span>#</span>
+                    <input placeholder="Banc, Poubelle, Chaufferie…" t-att-value="s.objet" t-on-input="onSigObj" t-on-keydown="onSigObjKey"/>
+                </div>
+                <button class="o_tv_btn o_tv_btn_light" t-att-disabled="!s.objet" t-on-click="() => this.sigAddObj(s.objet)"><i class="fa fa-plus"/></button>
+            </div>
+            <div t-if="sigObjets.length" class="o_tv_filters flex-wrap mt-1">
+                <t t-foreach="sigObjets" t-as="l" t-key="l.id">
+                    <button class="o_tv_lieu o_tv_obj o_tv_lieu_btn" t-on-click="() => this.sigAddObj(l.name)">#<t t-esc="l.name"/></button>
+                </t>
+            </div>
+            <label>Message</label>
+            <textarea class="o_tv_input" rows="3" placeholder="Constaté en passant…" t-model="s.description"/>
+            <button class="o_tv_btn o_tv_btn_primary w-100 mt-3" t-att-disabled="state.busy" t-on-click="sendSignaler"><i class="fa fa-paper-plane"/> Envoyer au superviseur</button>
+        </div>
+    </div>
+</t>
+
+</templates>

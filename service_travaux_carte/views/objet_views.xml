@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_objet_list" model="ir.ui.view">
+        <field name="name">travaux.objet.list</field>
+        <field name="model">travaux.objet</field>
+        <field name="arch" type="xml">
+            <list decoration-warning="state == 'propose'">
+                <field name="name"/>
+                <field name="type_id"/>
+                <field name="lieu_id"/>
+                <field name="rue"/>
+                <field name="geom_type" optional="hide"/>
+                <field name="mesure_txt" optional="show"/>
+                <field name="circuit_id" optional="show"/>
+                <field name="source" widget="badge"/>
+                <field name="state" widget="badge" decoration-warning="state == 'propose'"/>
+                <field name="nb_ouvertes" string="Ouvertes"/>
+                <field name="picc_nature" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_objet_search" model="ir.ui.view">
+        <field name="name">travaux.objet.search</field>
+        <field name="model">travaux.objet</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="type_id"/>
+                <field name="lieu_id"/>
+                <field name="rue"/>
+                <field name="circuit_id"/>
+                <filter name="f_prop" string="À figer" domain="[('state', '=', 'propose')]"/>
+                <filter name="f_picc" string="Venus du PICC" domain="[('source', '=', 'picc')]"/>
+                <filter name="f_terrain" string="Ajoutés sur le terrain" domain="[('source', '=', 'terrain')]"/>
+                <filter name="f_import" string="Importés" domain="[('ext_ref', '!=', False)]"/>
+                <separator/>
+                <filter name="f_point" string="Points" domain="[('geom_type', '=', 'point')]"/>
+                <filter name="f_ligne" string="Lignes" domain="[('geom_type', '=', 'ligne')]"/>
+                <filter name="f_surface" string="Surfaces" domain="[('geom_type', '=', 'surface')]"/>
+                <separator/>
+                <filter name="f_archived" string="Retirés" domain="[('active', '=', False)]"/>
+                <group>
+                    <filter name="g_type" string="Type" context="{'group_by': 'type_id'}"/>
+                    <filter name="g_lieu" string="# Lieu" context="{'group_by': 'lieu_id'}"/>
+                    <filter name="g_rue" string="Rue" context="{'group_by': 'rue'}"/>
+                    <filter name="g_source" string="Source" context="{'group_by': 'source'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_objet_form" model="ir.ui.view">
+        <field name="name">travaux.objet.form</field>
+        <field name="model">travaux.objet</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_figer" type="object" string="Figer" class="btn-primary" invisible="state == 'valide'"
+                            groups="service_travaux.group_superviseur"/>
+                    <field name="state" widget="statusbar"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_voir_carte" type="object" class="oe_stat_button" icon="fa-map-o" string="Carte"/>
+                        <button name="action_voir_demandes" type="object" class="oe_stat_button" icon="fa-wrench">
+                            <field name="nb_demandes" widget="statinfo" string="Demandes"/>
+                        </button>
+                    </div>
+                    <widget name="web_ribbon" title="Retiré" bg_color="text-bg-danger" invisible="active"/>
+                    <field name="active" invisible="1"/>
+                    <div class="oe_title"><h1><field name="type_id" options="{'no_create': True}"/> <field name="name" class="text-muted"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="lieu_id" options="{'no_create': True}"/>
+                            <field name="rue"/>
+                            <field name="circuit_id"/>
+                            <field name="note"/>
+                            <field name="geom_type"/>
+                            <field name="mesure_txt" invisible="geom_type == 'point'"/>
+                        </group>
+                        <group>
+                            <field name="source"/>
+                            <field name="picc_nature" invisible="source != 'picc'"/>
+                            <field name="picc_id" invisible="not picc_id"/>
+                            <field name="propose_par_id" invisible="not propose_par_id"/>
+                            <field name="ext_ref" invisible="not ext_ref"/>
+                            <field name="geom_modifie" invisible="not ext_ref"/>
+                            <field name="latitude"/>
+                            <field name="longitude"/>
+                        </group>
+                    </group>
+                    <field name="demande_ids" readonly="1">
+                        <list>
+                            <field name="name"/>
+                            <field name="titre"/>
+                            <field name="state" widget="badge"/>
+                            <field name="create_date" string="Signalée le" widget="date"/>
+                        </list>
+                    </field>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_objets" model="ir.actions.act_window">
+        <field name="name">Objets recensés</field>
+        <field name="res_model">travaux.objet</field>
+        <field name="view_mode">list,form</field>
+        <field name="search_view_id" ref="view_objet_search"/>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_empty_folder">Aucun objet recensé</p>
+            <p>Importez les avaloirs, chambres de visite… depuis le PICC, ou ajoutez des objets sur la carte.</p>
+        </field>
+    </record>
+
+    <record id="view_demande_form_objet" model="ir.ui.view">
+        <field name="name">travaux.demande.form.objet</field>
+        <field name="model">travaux.demande</field>
+        <field name="inherit_id" ref="service_travaux.view_demande_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//field[@name='lieu_id']" position="after">
+                <field name="objet_recense_id" options="{'no_create': True}"/>
+            </xpath>
+        </field>
+    </record>
+</odoo>

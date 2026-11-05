@@ -1,0 +1,76 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<odoo>
+    <!-- Équipes du jour : colonnes = équipes, cartes = agents. Glisser une carte = prêter l'agent. -->
+    <record id="view_employee_list_jour" model="ir.ui.view">
+        <field name="name">hr.employee.list.jour</field>
+        <field name="model">hr.employee</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <list string="Agents (présences du jour)" editable="bottom" create="0" delete="0">
+                <field name="name" readonly="1"/>
+                <field name="fonction" readonly="1"/>
+                <field name="equipe_id" string="Équipe"/>
+                <field name="statut_jour" widget="badge" decoration-success="statut_jour == 'present'" decoration-warning="statut_jour != 'present'"/>
+                <field name="equipe_pret_id"/>
+                <field name="equipe_jour_id" readonly="1"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_employee_search_travaux" model="ir.ui.view">
+        <field name="name">hr.employee.search.travaux</field>
+        <field name="model">hr.employee</field>
+        <field name="priority">99</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="equipe_jour_id"/>
+                <field name="superviseur_travaux_id"/>
+                <filter name="mes_equipes" string="Mes équipes" domain="['|', ('superviseur_travaux_id', '=', uid), ('equipe_jour_id.is_pool', '=', True)]"/>
+                <separator/>
+                <filter name="presents" string="Présents" domain="[('statut_jour', '=', 'present')]"/>
+                <filter name="absents" string="Absents" domain="[('statut_jour', '!=', 'present')]"/>
+                <filter name="pretes" string="Prêtés aujourd'hui" domain="[('equipe_pret_id', '!=', False)]"/>
+                <group>
+                    <filter name="grp_jour" string="Équipe du jour" context="{'group_by': 'equipe_jour_id'}"/>
+                    <filter name="grp_sup" string="Superviseur" context="{'group_by': 'superviseur_travaux_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_employee_form_travaux" model="ir.ui.view">
+        <field name="name">hr.employee.form.travaux</field>
+        <field name="model">hr.employee</field>
+        <field name="inherit_id" ref="hr.view_employee_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="FACILITY" name="travaux">
+                    <group>
+                        <group>
+                            <field name="equipe_id" string="Équipe (définitive)"/>
+                            <field name="equipe_pret_id"/>
+                        </group>
+                        <group>
+                            <field name="statut_jour"/>
+                            <field name="equipe_jour_id"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="action_equipes_jour" model="ir.actions.act_window">
+        <field name="name">Équipes du jour</field>
+        <field name="res_model">hr.employee</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_ids" eval="[(5, 0, 0), (0, 0, {'view_mode': 'list', 'view_id': ref('view_employee_list_jour')})]"/>
+        <field name="search_view_id" ref="view_employee_search_travaux"/>
+        <field name="domain">[('equipe_jour_id', '!=', False)]</field>
+        <field name="context">{'group_by': 'equipe_jour_id'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aucun agent</p>
+            <p>Ajoutez les agents dans Employés et rattachez-les à une équipe.</p>
+        </field>
+    </record>
+</odoo>

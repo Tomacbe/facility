@@ -1,0 +1,220 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="service_travaux.Direction" owl="1">
+    <div class="o_action o_tv_page o_tv_direction" t-if="state.data">
+        <div class="o_tv_dir_layout">
+            <!-- filtres -->
+            <aside class="o_tv_dir_filters">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <b><i class="fa fa-filter"/> Filtres</b>
+                    <a href="#" class="o_tv_small_link" t-on-click.prevent="reset">Réinitialiser</a>
+                </div>
+                <label class="o_tv_small_label">PÉRIODE</label>
+                <select class="o_tv_input" t-model="state.period">
+                    <option value="1">Dernier mois</option>
+                    <option value="3">3 derniers mois</option>
+                    <option value="6">6 derniers mois</option>
+                    <option value="12">12 derniers mois</option>
+                </select>
+                <t t-if="(state.data.services or []).length">
+                    <label class="o_tv_small_label mt-3">SERVICE</label>
+                    <select class="o_tv_input" t-on-change="onDept">
+                        <option value="" t-att-selected="!state.dept">Tous les services</option>
+                        <t t-foreach="state.data.services" t-as="d" t-key="d.id"><option t-att-value="d.id" t-att-selected="isDeptSel(d.id)" t-esc="deptLabel(d)"/></t>
+                    </select>
+                </t>
+                <label class="o_tv_small_label mt-3">SUPERVISEUR</label>
+                <t t-foreach="state.data.supervisors" t-as="s" t-key="s.id">
+                    <label class="o_tv_check"><input type="checkbox" t-att-checked="!state.supOff[s.id]" t-on-change="() => this.toggleSup(s.id)"/> <t t-esc="s.name"/></label>
+                </t>
+                <label class="o_tv_small_label mt-3">ÉQUIPE</label>
+                <t t-foreach="state.data.teams" t-as="t" t-key="t.id">
+                    <label class="o_tv_check"><input type="checkbox" t-att-checked="!state.teamOff[t.id]" t-on-change="() => this.toggleTeam(t.id)"/> <t t-esc="t.name"/></label>
+                </t>
+                <div class="o_tv_note mt-auto">Temps mesurés par Démarrer / Terminer et agrégés par équipe. Aucune donnée par personne.</div>
+            </aside>
+
+            <div class="o_tv_dir_main">
+                <div class="o_tv_page_head px-0 pt-0">
+                    <h1>Contrôle du fonctionnement</h1>
+                    <span class="o_tv_lead"><t t-esc="periodLabel"/> · <t t-esc="scoped.length"/> équipe(s)</span>
+                </div>
+
+                <TvHelp id="'direction'" text="help.text" steps="help.steps"/>
+                <div class="o_tv_kpis o_tv_kpis5">
+                    <t t-foreach="kpis" t-as="k" t-key="k_index">
+                        <div class="o_tv_card o_tv_kpi"><div class="o_tv_kpi_v" t-att-style="'color:' + k.color" t-esc="k.value"/><div class="o_tv_kpi_l" t-esc="k.label"/></div>
+                    </t>
+                </div>
+
+                <div class="o_tv_dir_row">
+                    <div class="o_tv_card o_tv_flex2">
+                        <div class="o_tv_card_head"><b>Aujourd'hui : équipes disponibles et surcharges</b><span class="o_tv_meta">présents × 7 h 36 comparés au travail planifié</span></div>
+                        <div class="o_tv_today">
+                            <t t-foreach="todayCards" t-as="r" t-key="r.team">
+                                <div class="o_tv_todaycard" t-att-style="'border-left-color:' + r.color">
+                                    <div class="d-flex justify-content-between"><b t-esc="r.name"/><span class="o_tv_meta"><t t-esc="r.presents"/>/<t t-esc="r.membres"/> présents</span></div>
+                                    <div class="o_tv_bar my-1"><span t-att-style="'width:' + r.bar + '%;background:' + r.st.color"/></div>
+                                    <div class="o_tv_meta">Prévu <t t-esc="fmtH(r.prevu)"/> pour <t t-esc="fmtH(r.dispo)"/> de présence · <t t-esc="r.tasks"/> tâche(s)</div>
+                                    <span class="o_tv_st mt-1" t-att-style="'background:' + r.st.bg + ';color:' + r.st.color" t-esc="r.st.label"/>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                    <div class="o_tv_card o_tv_flex1">
+                        <div class="o_tv_card_head"><b>Alertes de fonctionnement</b><span class="o_tv_meta">semaines terminées</span></div>
+                        <div t-if="!alerts.length" class="o_tv_meta"><i class="fa fa-check-circle text-success"/> Rien d'anormal : le temps déclaré suit les présences.</div>
+                        <t t-foreach="alerts" t-as="a" t-key="a.key">
+                            <div t-attf-class="o_tv_alertrow {{ a.level }}"><i t-attf-class="fa {{ a.icon }}"/><span t-esc="a.text"/></div>
+                        </t>
+                    </div>
+                </div>
+
+                <div class="o_tv_dir_row">
+                    <div class="o_tv_card o_tv_flex2">
+                        <div class="o_tv_card_head"><b>Cohérence : temps déclaré / heures de présence</b><span class="o_tv_meta">clic = filtrer</span></div>
+                        <div class="o_tv_cohead"><span>Équipe</span><span class="flex-grow-1"/><span>Présence</span><span>Déclaré</span><span>Occupation</span><span>État</span></div>
+                        <t t-foreach="coherence" t-as="l" t-key="l.id">
+                            <div class="o_tv_corow" t-att-style="'opacity:' + l.opacity" t-on-click="() => this.focus(l.id)">
+                                <span class="o_tv_loadname" t-esc="l.name"/>
+                                <div class="o_tv_loadtrack">
+                                    <span class="o_tv_loadbar" t-att-style="'width:' + l.w + '%;background:' + l.color"/>
+                                    <span class="o_tv_loadcap" t-att-style="'left:' + l.cap + '%'" title="100 % des heures de présence"/>
+                                </div>
+                                <span class="o_tv_con" t-esc="l.presence + ' h'"/>
+                                <span class="o_tv_con" t-esc="l.declared + ' h'"/>
+                                <b class="o_tv_con" t-esc="l.pct + ' %'"/>
+                                <span class="o_tv_st o_tv_con2" t-att-style="'background:' + l.st.bg + ';color:' + l.st.color" t-esc="l.st.label"/>
+                            </div>
+                        </t>
+                        <div class="o_tv_meta mt-1">Trait noir : 100 % des heures de présence. Au-delà (orange), l'équipe déclare plus que le temps de présence : surcharge ou erreur d'imputation. En vert : l'équipe a de la marge.</div>
+                    </div>
+                </div>
+
+                <div class="o_tv_dir_row">
+                    <div class="o_tv_card o_tv_flex2">
+                        <t t-set="ab" t-value="absences"/>
+                        <div class="o_tv_card_head"><b>Absentéisme : ce qui déforce le service</b><span class="o_tv_meta">moyenne <b t-esc="ab.total + ' %'"/> des journées · clic = filtrer</span></div>
+                        <div class="o_tv_cohead o_tv_abhead"><span>Équipe</span><span class="flex-grow-1"/><span>Absence</span><span>Journées perdues</span><span>Sous l'effectif minimum</span></div>
+                        <t t-foreach="ab.rows" t-as="l" t-key="l.id">
+                            <div class="o_tv_corow" t-att-style="'opacity:' + l.opacity" t-on-click="() => this.focus(l.id)">
+                                <span class="o_tv_loadname" t-esc="l.name"/>
+                                <div class="o_tv_loadtrack o_tv_abtrack">
+                                    <t t-foreach="l.segs" t-as="sg" t-key="sg.k"><span class="o_tv_abseg" t-att-title="sg.title" t-att-style="'width:' + sg.w + '%;background:' + sg.color"/></t>
+                                </div>
+                                <b class="o_tv_con" t-esc="l.pct + ' %'"/>
+                                <span class="o_tv_con4" t-esc="l.jours"/>
+                                <span t-attf-class="o_tv_con3 {{ l.sousPct >= 20 ? 'o_tv_warn' : '' }}"><b t-esc="l.sousMin"/> jour(s) sur <t t-esc="l.nbJours"/><t t-if="l.nbJours"> (<t t-esc="l.sousPct"/> %)</t></span>
+                            </div>
+                        </t>
+                        <div class="o_tv_ablegend">
+                            <t t-foreach="ab.kinds" t-as="k" t-key="k.k"><span><i t-att-style="'background:' + k.color"/> <t t-esc="k.label"/></span></t>
+                        </div>
+                        <div class="o_tv_meta mt-1">Part des journées où les agents de l'équipe n'étaient pas présents, par type d'absence (jamais par personne). « Sous l'effectif minimum » : jours où l'équipe ne pouvait pas tourner normalement.</div>
+                    </div>
+                </div>
+
+                <div class="o_tv_dir_row">
+                    <div class="o_tv_card o_tv_flex2">
+                        <div class="o_tv_card_head"><b>Charge par équipe (heures / capacité)</b><span class="o_tv_meta">clic = filtrer</span></div>
+                        <t t-foreach="loads" t-as="l" t-key="l.id">
+                            <div class="o_tv_loadrow" t-att-style="'opacity:' + l.opacity" t-on-click="() => this.focus(l.id)"
+                                 t-on-mouseenter="() => this.hoverLoad(l.id)" t-on-mouseleave="() => this.hoverLoad(null)">
+                                <span class="o_tv_loadname" t-esc="l.name"/>
+                                <div class="o_tv_loadtrack">
+                                    <span class="o_tv_loadbar" t-att-style="'width:' + l.w + '%;background:' + l.color"/>
+                                    <span class="o_tv_loadcap" t-att-style="'left:' + l.cap + '%'"/>
+                                </div>
+                                <span class="o_tv_loadpct" t-att-style="'color:' + l.text"><t t-esc="l.pct"/> %</span>
+                            </div>
+                        </t>
+                        <div class="o_tv_meta mt-1" t-if="!loadTip">Trait noir : capacité (100 %). En orange : au-delà de la capacité.</div>
+                        <div class="o_tv_meta mt-1" t-else=""><b t-esc="loadTip.name"/> : <t t-esc="loadTip.hours"/> h mesurées pour <t t-esc="loadTip.capH"/> h de capacité · <t t-esc="loadTip.n"/> demandes</div>
+                    </div>
+
+                    <div class="o_tv_card o_tv_flex1">
+                        <div class="o_tv_card_head"><b>Répartition du temps par type</b></div>
+                        <t t-set="dn" t-value="donut"/>
+                        <div class="d-flex align-items-center gap-3 flex-wrap">
+                            <svg viewBox="0 0 170 170" width="150" height="150">
+                                <t t-foreach="dn.paths" t-as="p" t-key="p.key"><path t-att-d="p.d" t-att-fill="p.color" stroke="#fff" stroke-width="1.5"/></t>
+                                <text x="85" y="84" text-anchor="middle" class="o_tv_donut_v" t-esc="dn.total"/>
+                                <text x="85" y="102" text-anchor="middle" class="o_tv_donut_l">heures</text>
+                            </svg>
+                            <div class="flex-grow-1">
+                                <t t-foreach="dn.legend" t-as="g" t-key="g.k">
+                                    <div class="o_tv_legrow"><span class="o_tv_sq" t-att-style="'background:' + g.color"/><span class="flex-grow-1" t-esc="g.label"/><b><t t-esc="g.pct"/> %</b></div>
+                                </t>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="o_tv_card o_tv_flex1">
+                        <div class="o_tv_card_head"><b>Demandes traitées par mois</b></div>
+                        <t t-set="ln" t-value="line"/>
+                        <svg viewBox="0 0 300 205" class="w-100" t-on-mouseleave="() => this.hoverMonth(null)">
+                            <t t-foreach="ln.grid" t-as="g" t-key="g_index">
+                                <line x1="36" x2="284" t-att-y1="g.y" t-att-y2="g.y" stroke="#E6E9EB"/>
+                                <text x="30" t-att-y="g.ty" text-anchor="end" class="o_tv_axis" t-esc="g.label"/>
+                            </t>
+                            <polygon t-att-points="ln.area" fill="#2A78D6" fill-opacity="0.08"/>
+                            <polyline t-att-points="ln.pts" fill="none" stroke="#2A78D6" stroke-width="2"/>
+                            <t t-foreach="ln.months" t-as="m" t-key="m.i">
+                                <text t-att-x="m.lx" y="198" text-anchor="middle" class="o_tv_axis" t-esc="m.label"/>
+                                <rect t-att-x="m.hx" y="0" t-att-width="m.hw" t-att-height="ln.Y1" fill="transparent" t-on-mouseenter="() => this.hoverMonth(m.i)"/>
+                            </t>
+                            <t t-if="ln.hover">
+                                <line t-att-x1="ln.hover.x" t-att-x2="ln.hover.x" y1="10" t-att-y2="ln.Y1" stroke="#9AAEB4" stroke-dasharray="3 3"/>
+                                <circle t-att-cx="ln.hover.x" t-att-cy="ln.hover.y" r="4" fill="#2A78D6" stroke="#fff" stroke-width="2"/>
+                                <rect t-att-x="ln.hover.tipX" y="14" width="140" height="22" rx="4" fill="#1A1A1A"/>
+                                <text t-att-x="ln.hover.tipX + 8" y="29" class="o_tv_tip" t-esc="ln.hover.text"/>
+                            </t>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="o_tv_dir_row">
+                    <div class="o_tv_card o_tv_flex1">
+                        <div class="o_tv_card_head"><b>Heures par équipe et type de travail</b></div>
+                        <table class="o_tv_matrix">
+                            <thead><tr><th>Équipe</th><th>Tournées</th><th>Maintenance</th><th>Demandes</th><th>Total</th></tr></thead>
+                            <tbody>
+                                <t t-foreach="matrix" t-as="r" t-key="r.id">
+                                    <tr>
+                                        <td t-esc="r.name"/>
+                                        <t t-foreach="r.cells" t-as="c" t-key="c.k"><td class="o_tv_heat" t-att-style="'background:' + c.bg + ';color:' + c.fg" t-esc="c.v"/></t>
+                                        <td><b t-esc="r.total"/></td>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                        <div class="o_tv_meta mt-1">Plus la case est foncée, plus l'équipe y consacre d'heures.</div>
+                    </div>
+
+                    <div class="o_tv_card o_tv_flex1">
+                        <div class="o_tv_card_head"><b>Lieux les plus sollicités</b><span class="o_tv_meta">heures consacrées et nombre de travaux sur la période</span></div>
+                        <div t-if="!lieux.length" class="o_tv_meta py-3">Aucun lieu-dit sur la période. Nommez les adresses qui reviennent depuis « Demandes à traiter ».</div>
+                        <div class="o_tv_eqlist">
+                            <t t-foreach="lieux" t-as="e" t-key="e.id">
+                                <div class="o_tv_eqrow" t-on-click="() => this.openLieu(e.id)" style="cursor:pointer">
+                                    <div class="o_tv_thumb o_tv_thumb_sm"><i class="fa fa-map-pin"/></div>
+                                    <div class="o_tv_eqname">
+                                        <b class="text-truncate d-block" t-esc="e.name"/>
+                                        <span class="o_tv_meta text-truncate d-block"><t t-esc="e.adresse"/><t t-if="e.teams"> · <t t-esc="e.teams"/></t></span>
+                                    </div>
+                                    <div class="o_tv_eqbar"><span t-att-style="'width:' + e.bar + '%;background:#276577'"/></div>
+                                    <b class="o_tv_eqn" t-esc="e.n"/>
+                                    <span class="o_tv_eqh" t-esc="e.hours"/>
+                                    <span class="o_tv_eqbtn o_tv_meta">Voir <i class="fa fa-angle-right"/></span>
+                                </div>
+                            </t>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</t>
+
+</templates>

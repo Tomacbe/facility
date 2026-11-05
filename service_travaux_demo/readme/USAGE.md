@@ -1,0 +1,1 @@
+Installer le module sur une base de test. Il installe FACILITY et charge les données. Pour recréer en une fois une base complète (FACILITY, démonstration et carte), voir le script creer_base_test.sh à la racine du dépôt.

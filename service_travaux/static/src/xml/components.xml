@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+
+<t t-name="service_travaux.TvTimeline" owl="1">
+    <div t-attf-class="o_tv_tl {{ props.compact ? 'compact' : '' }} {{ state.open ? 'open' : '' }}">
+        <div class="o_tv_tl_bar" t-on-click="toggle" t-att-title="props.compact ? 'Afficher la chronologie' : ''">
+            <t t-foreach="props.steps" t-as="s" t-key="s.key">
+                <div t-attf-class="o_tv_tl_step {{ s.done ? 'done' : '' }} {{ s.current ? 'current' : '' }}">
+                    <span class="o_tv_tl_dot"><i t-if="s.done" class="fa fa-check"/></span>
+                    <span class="o_tv_tl_label" t-esc="s.label"/>
+                    <span class="o_tv_tl_time" t-if="s.date and s.done" t-esc="when(s.date)"/>
+                </div>
+            </t>
+            <i t-if="props.compact" t-attf-class="fa {{ state.open ? 'fa-chevron-up' : 'fa-chevron-down' }} o_tv_tl_chev"/>
+        </div>
+        <div t-if="state.open" class="o_tv_tl_list">
+            <t t-foreach="props.steps" t-as="s" t-key="s.key">
+                <div t-attf-class="o_tv_tl_row {{ s.done ? 'done' : '' }} {{ s.current ? 'current' : '' }}">
+                    <span class="o_tv_tl_dot"><i t-if="s.done" class="fa fa-check"/></span>
+                    <div class="flex-grow-1">
+                        <b t-esc="s.label"/> <span t-if="s.detail" class="o_tv_meta" t-esc="s.detail"/>
+                        <div class="o_tv_meta" t-if="s.date and s.done" t-esc="when(s.date)"/>
+                        <div class="o_tv_meta" t-elif="s.current">en attente</div>
+                    </div>
+                </div>
+            </t>
+        </div>
+    </div>
+</t>
+
+<t t-name="service_travaux.TvHelp" owl="1">
+    <div t-if="!state.hidden" class="o_tv_help">
+        <i class="fa fa-lightbulb-o o_tv_help_icon"/>
+        <div class="flex-grow-1">
+            <div t-esc="props.text"/>
+            <ol t-if="props.steps and props.steps.length" class="o_tv_help_steps">
+                <t t-foreach="props.steps" t-as="st" t-key="st_index"><li t-esc="st"/></t>
+            </ol>
+        </div>
+        <button class="o_tv_help_close" title="Masquer l'aide" t-on-click="hide"><i class="fa fa-times"/></button>
+    </div>
+    <button t-else="" class="o_tv_help_reopen" title="Afficher l'aide de cet écran" t-on-click="show">?</button>
+</t>
+
+</templates>

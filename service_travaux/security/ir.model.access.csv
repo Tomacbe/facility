@@ -1,0 +1,40 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_demande_agent,demande agent,model_travaux_demande,group_agent,1,1,1,0
+access_demande_sup,demande superviseur,model_travaux_demande,group_superviseur,1,1,1,1
+access_equipe_agent,equipe agent,model_travaux_equipe,group_agent,1,0,0,0
+access_equipe_sup,equipe superviseur,model_travaux_equipe,group_superviseur,1,1,1,1
+access_categorie_agent,categorie agent,model_travaux_categorie,group_agent,1,0,0,0
+access_categorie_sup,categorie superviseur,model_travaux_categorie,group_superviseur,1,1,1,1
+access_lieu_agent,lieu agent,model_travaux_lieu,group_agent,1,0,0,0
+access_lieu_sup,lieu superviseur,model_travaux_lieu,group_superviseur,1,1,1,1
+access_employee_agent,employee agent,hr.model_hr_employee,group_agent,1,0,0,0
+access_employee_sup,employee superviseur,hr.model_hr_employee,group_superviseur,1,1,1,0
+access_pointage_agent,pointage agent,model_travaux_pointage,group_agent,1,1,1,0
+access_pointage_sup,pointage superviseur,model_travaux_pointage,group_superviseur,1,1,1,1
+access_vue_agent,vue agent,model_travaux_vue,group_agent,1,1,1,1
+access_presence_agent,presence agent,model_travaux_presence,group_agent,1,1,1,0
+access_presence_sup,presence sup,model_travaux_presence,group_superviseur,1,1,1,1
+access_demande_secr,demande secretariat,model_travaux_demande,group_secretariat,1,1,1,0
+access_lieu_secr,lieu secretariat,model_travaux_lieu,group_secretariat,1,0,0,0
+access_lieu_fusion_sup,lieu fusion superviseur,model_travaux_lieu_fusion,group_superviseur,1,1,1,1
+access_recensement_sup,recensement superviseur,model_travaux_recensement,group_superviseur,1,0,0,0
+access_recensement_secr,recensement secretariat,model_travaux_recensement,group_secretariat,1,0,0,0
+access_ia_config_admin,ia config admin,model_travaux_ia_config,base.group_system,1,1,1,1
+access_recurrence_agent,recurrence agent,model_travaux_recurrence,group_agent,1,0,0,0
+access_recurrence_sup,recurrence superviseur,model_travaux_recurrence,group_superviseur,1,1,1,1
+access_recurrence_secr,recurrence secretariat,model_travaux_recurrence,group_secretariat,1,1,1,0
+access_transfert_contact_agent,transfert contact agent,model_travaux_transfert_contact,group_agent,1,0,0,0
+access_transfert_contact_sup,transfert contact superviseur,model_travaux_transfert_contact,group_superviseur,1,1,1,1
+access_travaux_config_dir,travaux config direction,model_travaux_config,group_direction,1,0,0,0
+access_travaux_config_admin,travaux config admin,model_travaux_config,base.group_system,1,1,1,1
+access_circuit_agent,circuit agent,model_travaux_circuit,group_agent,1,0,0,0
+access_circuit_sup,circuit superviseur,model_travaux_circuit,group_superviseur,1,1,1,1
+access_circuit_zone_agent,circuit zone agent,model_travaux_circuit_zone,group_agent,1,0,0,0
+access_circuit_zone_sup,circuit zone superviseur,model_travaux_circuit_zone,group_superviseur,1,1,1,1
+access_passage_agent,passage agent,model_travaux_passage,group_agent,1,0,0,0
+access_passage_sup,passage superviseur,model_travaux_passage,group_superviseur,1,1,1,1
+access_demande_demandeur,demande demandeur,model_travaux_demande,group_demandeur,1,0,0,0
+access_nouvelle_demandeur,nouvelle demande,model_travaux_demande_nouvelle,base.group_user,1,1,1,1
+access_categorie_demandeur,categorie demandeur,model_travaux_categorie,group_demandeur,1,0,0,0
+access_lieu_demandeur,lieu demandeur,model_travaux_lieu,group_demandeur,1,0,0,0
+access_equipe_demandeur,equipe demandeur,model_travaux_equipe,group_demandeur,1,0,0,0

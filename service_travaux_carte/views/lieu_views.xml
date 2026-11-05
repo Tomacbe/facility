@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_lieu_form_carte" model="ir.ui.view">
+        <field name="name">travaux.lieu.form.carte</field>
+        <field name="model">travaux.lieu</field>
+        <field name="inherit_id" ref="service_travaux.view_lieu_form"/>
+        <field name="arch" type="xml">
+            <xpath expr="//div[@name='button_box']" position="inside">
+                <button name="action_voir_carte" type="object" class="oe_stat_button" icon="fa-map-o" string="Carte"
+                        invisible="kind == 'objet' and not nb_objets"/>
+                <button name="%(service_travaux_carte.action_objets)d" type="action" class="oe_stat_button" icon="fa-map-marker"
+                        invisible="kind != 'objet'" context="{'search_default_type_id': id, 'default_type_id': id}">
+                    <field name="nb_objets" widget="statinfo" string="Objets recensés"/>
+                </button>
+            </xpath>
+            <xpath expr="//field[@name='note']" position="after">
+                <field name="geom_type" invisible="kind != 'objet'" widget="radio" options="{'horizontal': true}"
+                       readonly="nb_objets"/>
+                <field name="prefixe" invisible="kind != 'objet'" placeholder="AV"/>
+                <field name="couleur" widget="color" invisible="kind != 'objet'"/>
+                <field name="proposable" invisible="kind != 'objet'"/>
+                <field name="has_contour" invisible="kind == 'objet'"/>
+                <field name="surface" invisible="not has_contour"/>
+            </xpath>
+        </field>
+    </record>
+
+    <record id="view_type_objet_list" model="ir.ui.view">
+        <field name="name">travaux.lieu.list.carte</field>
+        <field name="model">travaux.lieu</field>
+        <field name="priority">40</field>
+        <field name="arch" type="xml">
+            <list editable="bottom">
+                <field name="kind" column_invisible="True"/>
+                <field name="name"/>
+                <field name="geom_type" readonly="nb_objets"/>
+                <field name="couleur" widget="color"/>
+                <field name="prefixe"/>
+                <field name="proposable" widget="boolean_toggle"/>
+                <field name="nb_objets" string="Objets"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="action_types_objet" model="ir.actions.act_window">
+        <field name="name"># objets de la carte</field>
+        <field name="res_model">travaux.lieu</field>
+        <field name="view_mode">list,form</field>
+        <field name="view_id" ref="view_type_objet_list"/>
+        <field name="domain">[('kind', '=', 'objet')]</field>
+        <field name="context">{'default_kind': 'objet', 'default_state': 'valide'}</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Aucun # objet</p>
+            <p>Chaque # objet a sa géométrie : point (#Poubelle), ligne (#Haie) ou surface (#Pelouse).</p>
+        </field>
+    </record>
+</odoo>

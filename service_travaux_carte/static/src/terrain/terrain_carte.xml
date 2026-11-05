@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates xml:space="preserve">
+    <!-- Tournée « une par une » : bouton Carte, la liste reste l'écran principal -->
+    <t t-inherit="service_travaux.Terrain.Tz" t-inherit-mode="extension">
+        <xpath expr="//div[hasclass('o_tv_tz_head')]" position="inside">
+            <button t-attf-class="o_tv_btn o_tv_btn_xs {{ state.tzMap ? 'o_tv_btn_primary' : 'o_tv_btn_light' }} o_tvc_btn_carte" t-on-click="() => this.tvcToggleTz()">
+                <i t-attf-class="fa {{ state.tzMap ? 'fa-list-ul' : 'fa-map-o' }}"/> <t t-if="state.tzMap">Liste</t><t t-else="">Carte</t></button>
+        </xpath>
+        <xpath expr="//div[hasclass('o_tv_tz_head')]" position="after">
+            <t t-if="state.tzMap" t-call="service_travaux_carte.TerrainCarte"/>
+        </xpath>
+    </t>
+
+    <!-- Tournée en lot (poubelles) : le circuit sur la carte, depuis la discussion -->
+    <t t-inherit="service_travaux.Terrain.Conv" t-inherit-mode="extension">
+        <xpath expr="//div[@t-ref='chat']/div[1]" position="before">
+            <div t-if="!c.tz and tvcHasCircuitMap" class="o_tvc_lotbar">
+                <span class="flex-grow-1"><i class="fa fa-map-marker"/> <t t-esc="tvcCarte.objets.length"/> points sur le circuit</span>
+                <button t-attf-class="o_tv_btn o_tv_btn_xs {{ state.lotMap ? 'o_tv_btn_primary' : 'o_tv_btn_light' }}" t-on-click="() => this.tvcToggleLot()">
+                    <i t-attf-class="fa {{ state.lotMap ? 'fa-comments-o' : 'fa-map-o' }}"/> <t t-if="state.lotMap">Discussion</t><t t-else="">Carte</t></button>
+            </div>
+            <t t-if="!c.tz and tvcHasCircuitMap and state.lotMap" t-call="service_travaux_carte.TerrainCarte"/>
+        </xpath>
+    </t>
+
+    <t t-name="service_travaux_carte.TerrainCarte">
+        <div class="o_tvc_twrap">
+            <div class="o_tvc_tmap"/>
+            <div t-if="state.tzMap" class="o_tvc_tlegend">
+                <span><i style="background:#D07A1F"/>À faire</span><span><i style="background:#6A5CC4"/>En cours</span><span><i style="background:#2E8B57"/>Faite</span>
+            </div>
+            <button class="o_tvc_locate" title="Ma position" t-on-click="() => this.locateMe()"><i class="fa fa-location-arrow"/></button>
+            <t t-set="pr" t-value="state.tvcProp"/>
+            <button t-if="!pr and !tvcSelZone and !state.tvcObj" class="o_tvc_fab" t-on-click="() => this.tvcPropOpen()"><i class="fa fa-plus"/> Proposer</button>
+            <div t-if="pr and pr.step === 'sheet'" class="o_tvc_sheet">
+                <b>Proposer un objet</b>
+                <select class="o_tv_input" t-on-change="(ev) => this.tvcPropSetType(ev)">
+                    <option t-foreach="state.tvcTypes" t-as="t" t-key="t.id" t-att-value="t.id" t-att-selected="t.id === pr.type">#<t t-esc="t.name"/> · <t t-esc="t.g"/></option>
+                </select>
+                <div class="small text-muted">Il reste en pointillé, « proposé », jusqu'à ce qu'un superviseur le fige.</div>
+                <div class="d-flex gap-2">
+                    <button class="o_tv_btn o_tv_btn_primary flex-grow-1" t-att-disabled="!pr.type" t-on-click="() => this.tvcPropDraw()">Placer sur la carte</button>
+                    <button class="o_tv_btn o_tv_btn_light" t-on-click="() => this.tvcPropClose()">Fermer</button>
+                </div>
+            </div>
+            <div t-if="pr and pr.step === 'draw'" class="o_tvc_ptip">
+                <span class="flex-grow-1">
+                    <t t-if="tvcPropType and tvcPropType.g === 'point'">Touchez l'emplacement de #<t t-esc="tvcPropType.name"/>.</t>
+                    <t t-else="">#<t t-esc="tvcPropType and tvcPropType.name"/> : touchez les sommets (<t t-esc="pr.pts.length"/>).</t>
+                </span>
+                <button t-if="tvcPropType and tvcPropType.g === 'point' and state.pos" class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-on-click="() => this.tvcPropHere()">Ma position</button>
+                <button t-if="tvcPropType and tvcPropType.g !== 'point'" class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-att-disabled="!pr.pts.length" t-on-click="() => this.tvcPropUndo()"><i class="fa fa-undo"/></button>
+                <button t-if="tvcPropType and tvcPropType.g !== 'point'" class="o_tv_btn o_tv_btn_xs o_tv_btn_primary" t-att-disabled="pr.pts.length &lt; tvcPropMin or state.busy" t-on-click="() => this.tvcPropSave()">Terminer</button>
+                <button class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-on-click="() => this.tvcPropClose()">Annuler</button>
+            </div>
+            <div t-if="pr and pr.step === 'done' and pr.last" class="o_tvc_sheet">
+                <div><span t-if="pr.last.prop" class="o_tvc_proptag">Proposé</span> <b>#<t t-esc="pr.last.type"/> <t t-esc="pr.last.ref"/></b></div>
+                <div t-if="pr.last.prop" class="small text-muted">Envoyé au superviseur. Vous pouvez encore le retirer tant qu'il n'est pas figé.</div>
+                <div t-else="" class="small text-muted">Enregistré et figé (vous êtes superviseur).</div>
+                <div class="d-flex gap-2">
+                    <button class="o_tv_btn o_tv_btn_light" t-on-click="() => this.tvcPropRetirer()">Retirer</button>
+                    <button class="o_tv_btn o_tv_btn_primary ms-auto" t-on-click="() => this.tvcPropOpen()">+ Proposer un autre</button>
+                    <button class="o_tv_btn o_tv_btn_light" t-on-click="() => this.tvcPropClose()">OK</button>
+                </div>
+            </div>
+            <t t-set="z" t-value="tvcSelZone"/>
+            <div t-if="z" class="o_tvc_sheet">
+                <div class="o_tv_zone o_tvc_sheet_zone">
+                    <div class="o_tv_zone_txt">
+                        <div class="o_tv_zone_name" t-esc="z.name"/>
+                        <div class="o_tv_zone_meta"><span t-attf-class="{{ z.status === 'cours' ? 'o_tv_zone_run' : 'o_tv_zone_age' }}" t-esc="tzMeta(z)"/></div>
+                        <div t-if="z.note and z.status === 'todo'" class="o_tv_zone_note"><i class="fa fa-info-circle"/> <t t-esc="z.note"/></div>
+                    </div>
+                    <div t-if="z.status === 'todo'" class="o_tv_tz_btns">
+                        <button class="o_tv_zone_btn is_light" t-att-disabled="state.busy" t-on-click="() => this.tzInutile(z)">Pas nécessaire</button>
+                        <button class="o_tv_zone_btn" t-att-disabled="state.busy" t-on-click="() => this.tzDemarrer(z)">Démarrer</button>
+                    </div>
+                    <t t-elif="z.status === 'cours'">
+                        <button class="o_tv_zone_cam" title="Démarré par erreur : annuler" t-on-click="() => this.tzStop(z)"><i class="fa fa-times"/></button>
+                        <button class="o_tv_zone_btn is_fin" t-att-disabled="state.busy" t-on-click="() => this.tzFin(z)">Fait</button>
+                    </t>
+                    <span t-else="" class="o_tv_zone_ok is_old"><i t-attf-class="fa {{ z.status === 'inutile' ? 'fa-minus' : 'fa-check' }}"/></span>
+                </div>
+                <div t-if="state.fin and state.fin.tz and state.fin.zone === z.id" t-call="service_travaux.Terrain.Fin"/>
+            </div>
+            <t t-set="o" t-value="state.tvcObj"/>
+            <div t-if="o" class="o_tvc_sheet">
+                <div class="o_tvc_sheet_head">
+                    <b>#<t t-esc="o.type"/> <span class="text-muted" t-esc="o.ref"/></b>
+                    <span class="text-muted small"><t t-esc="o.rue"/><t t-if="o.lieu"> · <t t-esc="o.lieu"/></t></span>
+                </div>
+                <div t-if="o.ouvertes.length" class="small o_tvc_open">Déjà signalé : <t t-esc="o.ouvertes.map((x) => x.titre).join(', ')"/></div>
+                <div t-if="o.sent" class="small">Envoyé : <b t-esc="o.sent"/></div>
+                <div t-else="" class="o_tvc_sig">
+                    <span class="small text-muted">Signaler :</span>
+                    <button t-foreach="o.choix" t-as="t" t-key="t" class="o_tv_btn o_tv_btn_xs o_tv_btn_light" t-att-disabled="state.busy" t-on-click="() => this.tvcSignaler(t)" t-esc="t"/>
+                </div>
+            </div>
+        </div>
+    </t>
+</templates>

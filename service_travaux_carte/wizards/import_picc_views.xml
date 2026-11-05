@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_import_picc_form" model="ir.ui.view">
+        <field name="name">travaux.import.picc.form</field>
+        <field name="model">travaux.import.picc</field>
+        <field name="arch" type="xml">
+            <form string="Importer depuis le PICC">
+                <header><field name="state" widget="statusbar"/></header>
+                <div invisible="state != 'zone'">
+                    <p>Le PICC (SPW) recense les équipements de voirie : avaloirs, chambres de visite, points lumineux, poteaux…
+                        Choisissez la zone : seuls ces points seront importés comme objets FACILITY.</p>
+                    <group>
+                        <field name="mode" widget="radio"/>
+                        <field name="lieu_id" invisible="mode != 'lieu'" required="state == 'zone' and mode == 'lieu'" options="{'no_create': True}"/>
+                        <field name="rayon" invisible="mode != 'lieu'"/>
+                        <field name="min_lng" invisible="mode != 'rect'"/>
+                        <field name="min_lat" invisible="mode != 'rect'"/>
+                        <field name="max_lng" invisible="mode != 'rect'"/>
+                        <field name="max_lat" invisible="mode != 'rect'"/>
+                    </group>
+                </div>
+                <div invisible="state != 'classes'">
+                    <p><field name="total" class="fw-bold" readonly="1"/> points du PICC dans la zone. Cochez les classes à importer
+                        et le # objet de chacune. Un point déjà importé est reconnu par son identifiant PICC : il est mis à jour, jamais dupliqué.</p>
+                    <field name="line_ids" nolabel="1">
+                        <list editable="bottom" create="0" delete="0">
+                            <field name="importer"/>
+                            <field name="nature"/>
+                            <field name="nombre"/>
+                            <field name="type_id" options="{'no_create': True}"/>
+                            <field name="nouveau" invisible="type_id"/>
+                        </list>
+                    </field>
+                </div>
+                <div invisible="state != 'done'">
+                    <p class="fs-5"><field name="result" nolabel="1"/></p>
+                </div>
+                <footer>
+                    <button name="action_compter" type="object" string="Lire le PICC" class="btn-primary" invisible="state != 'zone'"/>
+                    <button name="action_importer" type="object" string="Importer" class="btn-primary" invisible="state != 'classes'"/>
+                    <button name="action_voir_carte" type="object" string="Voir sur la carte" class="btn-primary" invisible="state != 'done'"/>
+                    <button special="cancel" string="Fermer"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_import_picc" model="ir.actions.act_window">
+        <field name="name">Importer depuis le PICC</field>
+        <field name="res_model">travaux.import.picc</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+</odoo>

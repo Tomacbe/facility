@@ -1,0 +1,2 @@
+- **FACILITY > Carte** : colonne des # par géométrie, liste « À figer » et # lieux sans géométrie. Cliquer sur un objet ouvre sa fiche (mesure, demandes liées, Figer / Refuser, forme, déplacer, supprimer).
+- **App terrain > Carte** : signaler ou proposer un objet sur place.

@@ -1,0 +1,48 @@
+// FACILITY – couleurs de l'application
+$travaux-teal: #276577;
+$travaux-teal-d: #1D4E5C;
+
+.o_travaux_kanban, .o_travaux_queue, .o_travaux_chats, .o_travaux_jour, .o_travaux_equipes {
+    .o_kanban_record { border-radius: 12px; }
+}
+.o_travaux_kanban .o_travaux_card { padding: 0 !important; overflow: hidden; }
+.o_travaux_cover img { width: 100%; height: 110px; object-fit: cover; display: block; border-radius: 12px 12px 0 0; }
+.o_travaux_team_badge { color: #fff; }
+.o_travaux_queue .o_kanban_record { width: 100%; }
+.o_travaux_thumb {
+    width: 64px; height: 64px; flex: 0 0 64px; border-radius: 8px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; background: #E7EEF0;
+    img { width: 100%; height: 100%; object-fit: cover; }
+}
+.o_travaux_badge_todo { background: #F1E9FB; color: #5B21B6; }
+.o_travaux_equipes .o_travaux_low { border: 1px solid #F5C99A; background: #FFF8F0; }
+.o_travaux_jour .o_travaux_absent { opacity: .7; }
+.o_travaux_jour .o_travaux_statuts .btn { padding: 0 .4rem; font-size: .75rem; }
+
+// App terrain : une intervention = une discussion
+.o_travaux_chats.o_kanban_view { background: #fff; }
+.o_travaux_chats .o_kanban_record { width: 100% !important; margin: 0 !important; border: 0; border-bottom: 1px solid #E3E8EA; border-radius: 0 !important; }
+.o_travaux_chat_row { display: flex; gap: 12px; align-items: center; }
+.o_travaux_chat_avatar {
+    width: 52px; height: 52px; flex: 0 0 52px; border-radius: 50%; overflow: hidden; background: #E7EEF0;
+    display: flex; align-items: center; justify-content: center; color: $travaux-teal;
+    img { width: 100%; height: 100%; object-fit: cover; }
+}
+.o_travaux_chat_body { flex: 1; min-width: 0; }
+.o_travaux_st_planif { background: #FDE8DC; color: #9A3412; }
+.o_travaux_st_cours { background: #DBE4FB; color: #1E3A8A; }
+.o_travaux_st_valider, .o_travaux_st_close { background: #DCF0E1; color: #14532D; }
+.o_travaux_st_recue { background: #EDE4FF; color: #5B21B6; }
+
+.o_travaux_terrain_form {
+    .o_travaux_big_buttons .btn-lg { padding: 14px; font-size: 1.2rem; border-radius: 12px; }
+}
+.o_travaux_photos .o_field_image img { border-radius: 10px; object-fit: cover; }
+.o_travaux_attrib { background: #F5F7F7; border-radius: 12px; padding-bottom: 8px; }
+
+// Couleur d'équipe (mêmes teintes que la maquette)
+$travaux-team-colors: (0: #55606A, 1: #B91C1C, 2: #C2410C, 3: #A16207, 4: #0E7490, 5: #6D28D9, 6: #B45309,
+                       7: #0F766E, 8: #1D4ED8, 9: #BE185D, 10: #15803D, 11: #7C3AED);
+@each $i, $c in $travaux-team-colors {
+    .o_travaux_team_#{$i} { background-color: $c; color: #fff; }
+}

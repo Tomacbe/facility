@@ -1,0 +1,4 @@
+- **Demandes à traiter** : encoder une demande (quoi, où, qui) et l'attribuer à une équipe.
+- **Suivi et planning** : écran d'accueil. Kanban ouvert sur la semaine en cours, avec passage à une autre semaine ou au mois. Ce qui n'est pas clôturé en semaine 1 glisse en semaine 2.
+- **App terrain** : sur smartphone, l'équipe voit son travail planifié, le démarre, le termine avec photo et confirme les agents présents.
+- **Tableau de bord** et **Vue d'ensemble** : indicateurs pour la direction.

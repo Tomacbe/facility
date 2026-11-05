@@ -1,0 +1,232 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<odoo>
+    <!-- ============================================================ FORM (bureau) -->
+    <record id="view_demande_form" model="ir.ui.view">
+        <field name="name">travaux.demande.form</field>
+        <field name="model">travaux.demande</field>
+        <field name="arch" type="xml">
+            <form string="Demande de travaux" class="o_travaux_demande_form">
+                <header>
+                    <button name="action_attribuer" type="object" string="Attribuer et envoyer à l'équipe" class="btn-primary" invisible="state not in ('recue', 'precision')"/>
+                    <button name="action_transferer" type="object" string="Hors compétence : transférer" invisible="state not in ('recue', 'precision')"/>
+                    <button name="action_demander_precision" type="object" string="Demander une précision" invisible="state != 'recue'"/>
+                    <button name="action_remettre_a_traiter" type="object" string="Remettre à traiter" invisible="state not in ('precision', 'transferee')"/>
+                    <button name="action_demarrer" type="object" string="Démarrer" class="btn-primary" invisible="state != 'planif'"/>
+                    <button name="action_terminer" type="object" string="Terminé" class="btn-primary" invisible="state != 'cours'"/>
+                    <button name="action_cloturer" type="object" string="Valider et clôturer" class="btn-primary" groups="service_travaux.group_superviseur" invisible="state != 'valider'"/>
+                    <button name="action_rouvrir" type="object" string="Rouvrir" groups="service_travaux.group_superviseur" invisible="state not in ('valider', 'close')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="recue,planif,cours,valider,close"/>
+                </header>
+                <sheet>
+                    <div class="oe_button_box" name="button_box">
+                        <button name="action_ouvrir_carte" type="object" class="oe_stat_button" icon="fa-map-marker" string="Carte" invisible="not adresse"/>
+                    </div>
+                    <widget name="web_ribbon" title="Urgent" bg_color="bg-danger" invisible="priorite != '1' or state == 'close'"/>
+                    <div class="oe_title">
+                        <div class="text-muted">
+                            <field name="name" class="fw-bold"/> ·
+                            <field name="type_travail" class="oe_inline"/> ·
+                            reçue par <field name="source" class="oe_inline"/>
+                        </div>
+                        <h1><field name="titre" placeholder="ex. Nid de poule dangereux"/></h1>
+                    </div>
+                    <div class="row">
+                        <div class="col-lg-7">
+                            <div class="d-flex gap-3 flex-wrap o_travaux_photos">
+                                <div>
+                                    <span class="badge text-bg-danger mb-1">AVANT</span>
+                                    <field name="photo_avant" widget="image" options="{'size': [0, 260]}"/>
+                                </div>
+                                <div invisible="state in ('recue', 'precision', 'transferee')">
+                                    <span class="badge text-bg-success mb-1">APRÈS</span>
+                                    <field name="photo_apres" widget="image" options="{'size': [0, 260]}"/>
+                                </div>
+                            </div>
+                            <group>
+                                <field name="description" placeholder="Message du demandeur" nolabel="1" colspan="2"/>
+                                <field name="adresse" placeholder="Rue, numéro"/>
+                                <field name="lieu_precision" placeholder="Ex. derrière le préau, côté parking"/>
+                                <field name="lieu_id" placeholder="#ÉcoleDuCentre" options="{'no_quick_create': True}"/>
+                                <field name="objet_ids" widget="many2many_tags" placeholder="#Banc, #Chaufferie…" options="{'no_quick_create': True}" context="{'default_kind': 'objet'}"/>
+                                <field name="demandeur_id" context="{'show_address': 0}"/>
+                                <field name="demandeur_mobile" invisible="not demandeur_id"/>
+                                <field name="contact_ids" widget="many2many_tags" invisible="not contact_ids"/>
+                                <field name="fusion_id" invisible="not fusion_id"/>
+                                <field name="active" invisible="1"/>
+                                <field name="latitude" groups="base.group_no_one"/>
+                                <field name="longitude" groups="base.group_no_one"/>
+                            </group>
+                        </div>
+                        <div class="col-lg-5 o_travaux_attrib">
+                            <h4 class="mt-2">Attribuer la demande</h4>
+                            <div class="alert alert-info py-2 small" role="status" invisible="not equipe_suggeree_id">
+                                Catégorie « <field name="categorie_id" readonly="1" nolabel="1" class="oe_inline"/> » :
+                                équipe habituelle <b><field name="equipe_suggeree_id" nolabel="1" class="oe_inline" context="{'show_presence': True}"/></b>.
+                            </div>
+                            <div class="alert alert-warning py-2 small" role="status" invisible="not hors_competence">
+                                Cette catégorie est hors compétence du service : utilisez « Transférer ».
+                            </div>
+                            <group>
+                                <field name="categorie_id"/>
+                                <field name="equipe_id" context="{'show_presence': True}" options="{'no_create': True}"/>
+                                <field name="superviseur_id" widget="many2one_avatar_user"/>
+                                <field name="date_prevue"/>
+                                <field name="priorite" widget="radio" options="{'horizontal': true}"/>
+                                <field name="duree_prevue" widget="float_time"/>
+                                <field name="consigne" placeholder="Ex. sécuriser avant midi, prendre l'enrobé à froid"/>
+                                <field name="service_transfert" invisible="state != 'transferee'"/>
+                                <field name="hors_competence" invisible="1"/>
+                                <field name="recurrence_id" invisible="not recurrence_id" readonly="1"/>
+                                <field name="liste" invisible="not liste"/>
+                            </group>
+                            <group string="Temps de l'équipe" invisible="state in ('recue', 'precision', 'transferee')">
+                                <field name="date_debut"/>
+                                <field name="date_fin"/>
+                                <field name="duree_mesuree" widget="float_time"/>
+                                <field name="duree_horloge" widget="float_time" invisible="not nb_presents"/>
+                                <field name="nb_presents" invisible="not nb_presents"/>
+                                <field name="presents" invisible="not presents"/>
+                                <field name="avancement" invisible="not avancement"/>
+                                <field name="nb_reports" invisible="not nb_reports"/>
+                                <field name="date_cloture" invisible="not date_cloture"/>
+                            </group>
+                        </div>
+                    </div>
+                </sheet>
+                <chatter/>
+            </form>
+        </field>
+    </record>
+
+    <!-- ============================================================ LIST -->
+    <record id="view_demande_tree" model="ir.ui.view">
+        <field name="name">travaux.demande.tree</field>
+        <field name="model">travaux.demande</field>
+        <field name="arch" type="xml">
+            <list string="Demandes et tâches" decoration-danger="priorite == '1' and state not in ('close', 'transferee')" decoration-muted="state in ('close', 'transferee')">
+                <field name="name"/>
+                <field name="titre"/>
+                <field name="type_travail" optional="show"/>
+                <field name="adresse"/>
+                <field name="source" optional="hide"/>
+                <field name="categorie_id" optional="show"/>
+                <field name="equipe_id"/>
+                <field name="superviseur_id" optional="hide" widget="many2one_avatar_user"/>
+                <field name="date_prevue"/>
+                <field name="priorite" widget="priority" optional="show"/>
+                <field name="duree_prevue" widget="float_time" optional="hide" sum="Total"/>
+                <field name="duree_mesuree" widget="float_time" optional="show" sum="Total"/>
+                <field name="state" widget="badge" decoration-info="state in ('recue', 'planif')" decoration-primary="state == 'cours'" decoration-warning="state in ('valider', 'precision')" decoration-success="state == 'close'"/>
+            </list>
+        </field>
+    </record>
+
+    <!-- ============================================================ KANBAN suivi (superviseur) -->
+    <!-- ============================================================ KANBAN à traiter (file d'attente) -->
+    <!-- ============================================================ PLANNING (calendrier) -->
+    <record id="view_demande_calendar" model="ir.ui.view">
+        <field name="name">travaux.demande.calendar</field>
+        <field name="model">travaux.demande</field>
+        <field name="arch" type="xml">
+            <calendar string="Planning" date_start="date_prevue" color="equipe_id" mode="week" event_open_popup="true" quick_create="0" hide_time="true">
+                <field name="equipe_id" filters="1"/>
+                <field name="adresse"/>
+                <field name="type_travail"/>
+                <field name="duree_prevue" widget="float_time"/>
+                <field name="state"/>
+            </calendar>
+        </field>
+    </record>
+
+    <!-- ============================================================ PIVOT / GRAPH -->
+    <record id="view_demande_pivot" model="ir.ui.view">
+        <field name="name">travaux.demande.pivot</field>
+        <field name="model">travaux.demande</field>
+        <field name="arch" type="xml">
+            <pivot string="Heures par équipe et type de travail" sample="1">
+                <field name="equipe_id" type="row"/>
+                <field name="type_travail" type="col"/>
+                <field name="duree_mesuree" type="measure" widget="float_time"/>
+            </pivot>
+        </field>
+    </record>
+    <record id="view_demande_graph" model="ir.ui.view">
+        <field name="name">travaux.demande.graph</field>
+        <field name="model">travaux.demande</field>
+        <field name="arch" type="xml">
+            <graph string="Heures par équipe" type="bar" stacked="1" sample="1">
+                <field name="equipe_id"/>
+                <field name="type_travail"/>
+                <field name="duree_mesuree" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <!-- ============================================================ SEARCH -->
+    <record id="view_demande_search" model="ir.ui.view">
+        <field name="name">travaux.demande.search</field>
+        <field name="model">travaux.demande</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="titre" string="Demande" filter_domain="['|', '|', '|', ('titre', 'ilike', self), ('name', 'ilike', self), ('adresse', 'ilike', self), ('lieu_id.name', 'ilike', self)]"/>
+                <field name="adresse"/>
+                <field name="equipe_id"/>
+                <field name="superviseur_id"/>
+                <field name="demandeur_id"/>
+                <field name="lieu_id"/>
+                <field name="objet_ids"/>
+                <filter name="mes_equipes" string="Mes équipes" domain="[('superviseur_id', '=', uid)]"/>
+                <filter name="mon_equipe" string="Mon équipe" domain="['|', ('equipe_id.member_ids.user_id', '=', uid), ('equipe_id.jour_ids.user_id', '=', uid)]"/>
+                <separator/>
+                <filter name="urgentes" string="Urgentes" domain="[('priorite', '=', '1')]"/>
+                <filter name="a_attribuer" string="À attribuer" domain="[('state', 'in', ('recue', 'precision'))]"/>
+                <filter name="ouvertes" string="Ouvertes" domain="[('state', 'in', ('planif', 'cours', 'valider'))]"/>
+                <filter name="a_valider" string="À valider" domain="[('state', '=', 'valider')]"/>
+                <separator/>
+                <filter name="recentes" string="Masquer les clôturées de plus de 7 jours" domain="['|', ('state', '!=', 'close'), ('date_cloture', '&gt;=', (context_today() - relativedelta(days=7)).strftime('%Y-%m-%d'))]"/>
+                <separator/>
+                <filter name="aujourdhui" string="Aujourd'hui" domain="[('date_prevue', '=', context_today().strftime('%Y-%m-%d'))]"/>
+                <filter name="semaine" string="Cette semaine" domain="[('date_prevue', '&gt;=', (context_today() - relativedelta(days=context_today().weekday())).strftime('%Y-%m-%d')),                                  ('date_prevue', '&lt;=', (context_today() + relativedelta(days=6 - context_today().weekday())).strftime('%Y-%m-%d'))]"/>
+                <filter name="date_fin" string="Date de fin" date="date_fin"/>
+                <separator/>
+                <filter name="fusionnees" string="Fusionnées (doublons)" domain="[('active', '=', False), ('fusion_id', '!=', False)]"/>
+                <separator/>
+                <filter name="demandes" string="Demandes" domain="[('type_travail', '=', 'demande')]"/>
+                <filter name="tournees" string="Tournées" domain="[('type_travail', '=', 'tournee')]"/>
+                <filter name="maintenance" string="Maintenance planifiée" domain="[('type_travail', '=', 'maintenance')]"/>
+                <group>
+                    <filter name="grp_state" string="Statut" context="{'group_by': 'state'}"/>
+                    <filter name="grp_equipe" string="Équipe" context="{'group_by': 'equipe_id'}"/>
+                    <filter name="grp_sup" string="Superviseur" context="{'group_by': 'superviseur_id'}"/>
+                    <filter name="grp_type" string="Type" context="{'group_by': 'type_travail'}"/>
+                    <filter name="grp_cat" string="Catégorie" context="{'group_by': 'categorie_id'}"/>
+                    <filter name="grp_jour" string="Jour prévu" context="{'group_by': 'date_prevue:day'}"/>
+                    <filter name="grp_jour_fin" string="Jour (fin)" context="{'group_by': 'date_fin:day'}"/>
+                    <filter name="grp_mois" string="Mois (fin)" context="{'group_by': 'date_fin:month'}"/>
+                </group>
+                <searchpanel>
+                    <field name="equipe_id" string="Équipes" select="multi" icon="fa-users" enable_counters="1"/>
+                </searchpanel>
+            </search>
+        </field>
+    </record>
+
+    <!-- ============================================================ ACTIONS -->
+    <record id="action_planning" model="ir.actions.act_window">
+        <field name="name">Planning de la semaine</field>
+        <field name="res_model">travaux.demande</field>
+        <field name="view_mode">calendar,list,form</field>
+        <field name="domain">[('state', 'not in', ('recue', 'precision', 'transferee'))]</field>
+        <field name="context">{'default_state': 'planif'}</field>
+        <field name="view_ids" eval="[(5, 0, 0),             (0, 0, {'view_mode': 'calendar', 'view_id': ref('view_demande_calendar')}),             (0, 0, {'view_mode': 'list', 'view_id': ref('view_demande_tree')}),             (0, 0, {'view_mode': 'form', 'view_id': ref('view_demande_form')})]"/>
+        <field name="search_view_id" ref="view_demande_search"/>
+    </record>
+
+    <record id="action_toutes" model="ir.actions.act_window">
+        <field name="name">Toutes les demandes et tâches</field>
+        <field name="res_model">travaux.demande</field>
+        <field name="view_mode">list,form,calendar,pivot,graph</field>
+        <field name="view_ids" eval="[(5, 0, 0),             (0, 0, {'view_mode': 'list', 'view_id': ref('view_demande_tree')}),             (0, 0, {'view_mode': 'form', 'view_id': ref('view_demande_form')})]"/>
+        <field name="search_view_id" ref="view_demande_search"/>
+    </record>
+</odoo>

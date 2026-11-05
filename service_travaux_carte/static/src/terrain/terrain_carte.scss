@@ -1,0 +1,39 @@
+// App terrain : carte de la tournée
+.o_tvc_btn_carte { margin-left: 4px; }
+.o_tvc_lotbar {
+    display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 13px; color: #55606A;
+    background: #fff; border-bottom: 1px solid #DDE3E5;
+}
+.o_tvc_twrap { position: relative; height: 58vh; min-height: 320px; margin: 0 -12px; background: #EEF1EC; flex: none; }
+.o_tv_chat + .o_tvc_twrap, .o_tvc_lotbar + .o_tvc_twrap { margin: 0; }
+.o_tvc_tmap { position: absolute; inset: 0; }
+.o_tvc_tmap .leaflet-container, .o_tvc_tmap.leaflet-container { font: inherit; }
+.o_tvc_tlegend {
+    position: absolute; left: 8px; top: 8px; z-index: 500; background: rgba(255, 255, 255, .92); border-radius: 8px;
+    padding: 5px 8px; font-size: 11.5px; display: flex; flex-direction: column; gap: 3px;
+    span { display: flex; align-items: center; gap: 6px; }
+    i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+}
+.o_tvc_locate {
+    position: absolute; right: 10px; top: 10px; z-index: 500; width: 38px; height: 38px; border-radius: 50%;
+    border: 0; background: #fff; color: #276577; box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
+}
+.o_tvc_sheet {
+    position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 600; background: #fff; border-radius: 14px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .2); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;
+    max-height: 70%; overflow: auto;
+}
+.o_tvc_sheet_zone { border: 0 !important; padding: 0 !important; background: none !important; }
+.o_tvc_sheet_head { display: flex; flex-direction: column; }
+.o_tvc_sig { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.o_tvc_open { color: #C2410C; }
+.o_tvc_fab {
+    position: absolute; right: 10px; bottom: 12px; z-index: 550; border: 0; background: #276577; color: #fff; border-radius: 999px;
+    padding: 10px 16px; font-weight: 500; box-shadow: 0 6px 16px rgba(0, 0, 0, .25);
+}
+.o_tvc_ptip {
+    position: absolute; left: 8px; right: 56px; top: 8px; z-index: 600; background: #1A1A1A; color: #fff; border-radius: 10px;
+    padding: 7px 8px 7px 12px; font-size: 13px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap;
+    .o_tv_btn_light { color: #1A1A1A; }
+}
+.o_tvc_proptag { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: #FDEBD9; color: #9A3412; font-weight: 500; }
